@@ -1,0 +1,36 @@
+/. intro ./
+
+yukino is a tiny screenshot tool for Linux.
+
+The bulk of the program is in lib/, which contains platform code
+for getting screenshots among other funsies such as tiny png and
+ppm writers.
+
+While the library is built with platform-agnosticity in mind,
+there only exists code to support X11 via xcb at the moment. Feel
+free to submit patches for your favorite platform.
+
+It can be built on its own as a library, but there are no guarantees
+for API nor ABI stability.
+
+/. deps ./
+
+The library optionally depends on xcb for X11 support.
+
+The program additionally requires SDL on top of that.
+
+/. q&a ./
+
+Q: Why?
+A: Because every other screenshot tool for Linux sucks.
+
+Q: What does the name "yukino" mean?
+A: Watch OreGairu. Besides that, nothing really, it's just a cute name
+   that happens to be pretty short and sweet.
+
+/. contact ./
+
+www: https://tflc.us/
+email: paper@tflc.us
+
+/. eof ./
