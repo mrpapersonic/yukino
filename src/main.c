@@ -356,6 +356,23 @@ int main(int argc, char *argv[])
 			sel.h = sur->h;
 		}
 
+		if (sel.x < 0) {
+			sel.w += sel.x;
+			sel.x = 0;
+		}
+
+		if (sel.y < 0) {
+			sel.h += sel.y;
+			sel.y = 0;
+		}
+
+		/* max */
+		if (sel.x + sel.w > sur->w)
+			sel.w = sur->w - sel.x;
+
+		if (sel.y + sel.h > sur->h)
+			sel.h = sur->h - sel.y;
+
 		/* Blit. */
 		SDL_RenderClear(ren);
 
