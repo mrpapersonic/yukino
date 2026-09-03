@@ -151,7 +151,7 @@ static yukino_result_t png_deflate_write(
 	struct png *png, const void *b_, size_t sz)
 {
 #ifdef YUKINO_ZLIB
-	png->strm.next_in = b_;
+	png->strm.next_in = (Bytef *)b_;
 	png->strm.avail_in = sz;
 
 	if (deflate(&png->strm, Z_NO_FLUSH) < 0)
@@ -316,6 +316,8 @@ yukino_result_t yukino_write_png(uint32_t x, uint32_t y, uint32_t w, uint32_t h,
 		uint32_t imgsz = (w * h * 3) + h;
 
 #ifdef YUKINO_ZLIB
+		void *imgdata;
+
 		/* write the zlib header first */
 		png_zlib_header(&png, imgsz);
 
@@ -326,10 +328,15 @@ yukino_result_t yukino_write_png(uint32_t x, uint32_t y, uint32_t w, uint32_t h,
 
 		png_chunk_head(&png, "IDAT", png.strm.total_out);
 
-		png_write(&png, png.strm.next_out - png.strm.total_out, png.strm.total_out);
+		imgdata = png.strm.next_out - png.strm.total_out;
+
+		png_write(&png, imgdata, png.strm.total_out);
+
+		free(imgdata);
 
 		png_chunk_tail(&png);
 #else
+		/* Store uncompressed */
 		uint32_t sz;
 
 		/* zlib hdr, uncompressed data, deflate headers, zlib adler32 */
