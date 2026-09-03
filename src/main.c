@@ -450,7 +450,7 @@ out:
 	if (!file) {
 		/* Ask the user where to save the damn file */
 		volatile struct dialog_cb c;
-		c.sem = SDL_CreateSemaphore(1);
+		c.sem = SDL_CreateSemaphore(0);
 		c.file = NULL;
 
 		static const SDL_DialogFileFilter filters[] = {
@@ -461,7 +461,11 @@ out:
 		SDL_ShowSaveFileDialog(dialog_cb, (void *)&c, NULL, filters,
 			SDL_arraysize(filters), NULL);
 
-		SDL_WaitSemaphore(c.sem);
+		/* Wait until the semaphore is signaled
+		 * ...but we still need to handle events */
+		while (!SDL_WaitSemaphoreTimeout(c.sem, 10))
+			SDL_PumpEvents();
+
 		SDL_DestroySemaphore(c.sem);
 
 		file = c.file;
