@@ -196,7 +196,7 @@ static yukino_result_t png_zlib_header(struct png *png, size_t sz)
 	uLong bound;
 
 	png->strm.zalloc = NULL;
-	png->strm.zfree  = NULL;
+	png->strm.zfree = NULL;
 	png->strm.opaque = NULL;
 
 	if (deflateInit(&png->strm, Z_DEFAULT_COMPRESSION) != Z_OK)

@@ -135,7 +135,7 @@ static void sdl_write_surface_to_png(
 	if (!fp)
 		return; /* oops */
 
-	yukino_write_png(rect->x, rect->y, rect->w, rect->h, stdio_write_cb, fp,
+	yukino_write_ppm(rect->x, rect->y, rect->w, rect->h, stdio_write_cb, fp,
 		sdl_take_cb, sur);
 
 	fclose(fp);
@@ -293,9 +293,9 @@ int main(int argc, char *argv[])
 	char *file = NULL; /* output file */
 	int opt;
 	static struct option long_opts[] = {
-		{"output", required_argument, 0, 'o' },
-		{0}
-	};
+		{"output", required_argument, 0, 'o'},
+                {0}
+        };
 
 	/* parse command line opts */
 	while ((opt = getopt_long(argc, argv, "o:", long_opts, NULL)) != -1) {
@@ -428,8 +428,8 @@ out:;
 
 		static const SDL_DialogFileFilter filters[] = {
 			{"PNG (Portable Network Graphics)", "png"},
-	                {"All files",                       "*"  }
-	        };
+			{"All files",                       "*"  }
+                };
 
 		SDL_ShowSaveFileDialog(dialog_cb, (void *)&c, NULL, filters,
 			SDL_arraysize(filters), NULL);
