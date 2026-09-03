@@ -21,6 +21,12 @@
 
 #include "yukino.h"
 
+#ifdef __GNUC__
+# define YUKINO_INLINE static inline __attribute__((__always_inline__))
+#else
+# define YUKINO_INLINE static inline
+#endif
+
 /* privates */
 struct yukino_connection {
 	yukino_result_t (*disconnect)(yukino_connection_t *conn);
@@ -35,16 +41,14 @@ struct yukino_connection {
 		yukino_connection_t *conn, yukino_window_iter_t *wi);
 
 	yukino_result_t (*window_position)(yukino_connection_t *conn,
-		yukino_window_t win, int32_t *x, int32_t *y, uint32_t *w,
-		uint32_t *h);
+		yukino_window_t win, yukino_rect_t *pr);
 
 	yukino_result_t (*window_decorated_position)(yukino_connection_t *conn,
-		yukino_window_t win, int32_t *x, int32_t *y, uint32_t *w,
-		uint32_t *h);
+		yukino_window_t win, yukino_rect_t *pr);
 
 	yukino_result_t (*take)(yukino_connection_t *conn, uint32_t x,
 		uint32_t y, uint32_t w, uint32_t h,
-		yukino_take_pixel pixel_func, void *userdata);
+		yukino_pixel_proc_t pixel_func, void *userdata);
 
 	yukino_result_t (*lock)(yukino_connection_t *conn);
 	yukino_result_t (*unlock)(yukino_connection_t *conn);

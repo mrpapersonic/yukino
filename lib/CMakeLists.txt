@@ -45,7 +45,7 @@ endif()
 
 add_library(libyukino ${SRC_FILES})
 
-set_target_properties(libyukino PROPERTIES OUTPUT_NAME "yukino")
+set_target_properties(libyukino PROPERTIES OUTPUT_NAME "yukino" C_VISIBILITY_PRESET hidden)
 
 target_include_directories(libyukino PRIVATE ${INCLUDE})
 target_include_directories(libyukino PUBLIC .)

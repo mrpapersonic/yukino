@@ -53,7 +53,7 @@ static yukino_result_t sdl_take_pixel(void *userdata, unsigned char rgb[3])
 	return YUKINO_RESULT_OK;
 }
 
-static SDL_Surface *sdl_yukino(yukino_connection_t *conn, uint32_t x,
+static SDL_Surface *sdl_screenshot(yukino_connection_t *conn, uint32_t x,
 	uint32_t y, uint32_t w, uint32_t h)
 {
 	struct sdl_take_pixel s;
@@ -64,7 +64,7 @@ static SDL_Surface *sdl_yukino(yukino_connection_t *conn, uint32_t x,
 
 	s.x = s.y = 0;
 
-	if (yukino_take(conn, x, y, w, h, sdl_take_pixel, &s) < 0) {
+	if (yukino_screenshot(conn, x, y, w, h, sdl_take_pixel, &s) < 0) {
 		SDL_DestroySurface(s.sur);
 		return NULL;
 	}
@@ -73,7 +73,7 @@ static SDL_Surface *sdl_yukino(yukino_connection_t *conn, uint32_t x,
 }
 
 /* Takes a screenshot of the whole display */
-static SDL_Surface *sdl_yukino_display(yukino_connection_t *conn)
+static SDL_Surface *sdl_screenshot_display(yukino_connection_t *conn)
 {
 	yukino_result_t r;
 	uint32_t w, h;
@@ -81,14 +81,14 @@ static SDL_Surface *sdl_yukino_display(yukino_connection_t *conn)
 	if ((r = yukino_display_resolution(conn, &w, &h)) < 0)
 		return NULL;
 
-	return sdl_yukino(conn, 0, 0, w, h);
+	return sdl_screenshot(conn, 0, 0, w, h);
 }
 
 /* ------------------------------------------------------------------------ */
 /* save a portion of an SDL_Surface into a .png (or, really anything) file */
 
 static yukino_result_t sdl_take_cb(void *conn, uint32_t x, uint32_t y,
-	uint32_t w, uint32_t h, yukino_take_pixel pixel_func, void *userdata)
+	uint32_t w, uint32_t h, yukino_pixel_proc_t pixel_func, void *userdata)
 {
 	SDL_Surface *sur = conn;
 	uint32_t *pixels;
@@ -194,12 +194,6 @@ static void windows_fill(yukino_connection_t *conn)
 		return;
 
 	while (yukino_window_iter(conn, wi, &win) == YUKINO_RESULT_OK) {
-		int32_t wx, wy, wbx, wby;
-		uint32_t ww, wh, wbw, wbh;
-
-		if (yukino_window_position(conn, win, &wx, &wy, &ww, &wh) < 0)
-			continue; /* ??? */
-
 		/* allocate more space? */
 		if (windows_size >= windows_alloc) {
 			void *old = windows;
@@ -217,19 +211,11 @@ static void windows_fill(yukino_connection_t *conn)
 			}
 		}
 
-		windows[windows_size].rect.x = wx;
-		windows[windows_size].rect.y = wy;
-		windows[windows_size].rect.w = ww;
-		windows[windows_size].rect.h = wh;
-		if (yukino_window_decorated_position(
-			    conn, win, &wbx, &wby, &wbw, &wbh)
-			>= 0) {
+		if (yukino_window_position(conn, win, &windows[windows_size].rect) < 0)
+			continue; /* ??? */
+
+		if (yukino_window_decorated_position(conn, win, &windows[windows_size].border) >= 0)
 			windows[windows_size].have_border = 1;
-			windows[windows_size].border.x = wbx;
-			windows[windows_size].border.y = wby;
-			windows[windows_size].border.w = wbw;
-			windows[windows_size].border.h = wbh;
-		}
 		windows[windows_size].win = win;
 
 		windows_size++;
@@ -238,8 +224,7 @@ static void windows_fill(yukino_connection_t *conn)
 	yukino_window_iter_end(conn, wi);
 }
 
-static yukino_result_t windows_query_at_point(int32_t x, int32_t y, int32_t *px,
-	int32_t *py, uint32_t *pw, uint32_t *ph)
+static yukino_result_t windows_query_at_point(int32_t x, int32_t y, yukino_rect_t *pr)
 {
 	/* there may be no window under the pointer -- in that case return
 	 * YUKINO_RESULT_NONE */
@@ -253,16 +238,10 @@ static yukino_result_t windows_query_at_point(int32_t x, int32_t y, int32_t *px,
 
 		/* check if our coordinates are inside the window */
 		if (yukino_rect_has_point(&win->rect, x, y)) {
-			*px = win->rect.x;
-			*py = win->rect.y;
-			*pw = win->rect.w;
-			*ph = win->rect.h;
+			*pr = win->rect;
 			r = YUKINO_RESULT_OK;
 		} else if (yukino_rect_has_point(&win->border, x, y)) {
-			*px = win->border.x;
-			*py = win->border.y;
-			*pw = win->border.w;
-			*ph = win->border.h;
+			*pr = win->border;
 			r = YUKINO_RESULT_OK;
 		}
 	}
@@ -271,6 +250,23 @@ static yukino_result_t windows_query_at_point(int32_t x, int32_t y, int32_t *px,
 }
 
 /* ------------------------------------------------------------------------ */
+
+static void fixup_xw(float *x, float *w, uint32_t m)
+{
+	if (*x < 0) {
+		*w += *x;
+		*x = 0;
+	}
+
+	if (*x + *w > m)
+		*w = m - *x;
+}
+
+static void fixup(SDL_FRect *rect, SDL_Surface *sur)
+{
+	fixup_xw(&rect->x, &rect->w, sur->w);
+	fixup_xw(&rect->y, &rect->h, sur->h);
+}
 
 int main(int argc, char *argv[])
 {
@@ -281,7 +277,6 @@ int main(int argc, char *argv[])
 	SDL_Event ev;
 	SDL_Cursor *cur;
 	SDL_FRect sel;
-	yukino_connection_t *conn;
 	/* Mouse down, drag */
 	enum {
 		POINTS_DOWN,
@@ -311,19 +306,33 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (yukino_connect(&conn) < 0)
-		return 1; /* oops */
+	if (!SDL_Init(SDL_INIT_VIDEO))
+		return 1;
 
-	yukino_lock(conn);
+	{
+		yukino_connection_t *conn;
 
-	windows_fill(conn);
+		if (yukino_connect(&conn) < 0)
+			return 1; /* oops */
 
-	sur = sdl_yukino_display(conn);
+		yukino_lock(conn);
 
-	yukino_unlock(conn);
+		windows_fill(conn);
 
-	SDL_CreateWindowAndRenderer(
-		"yukino", sur->w, sur->h, SDL_WINDOW_FULLSCREEN | SDL_WINDOW_HIDDEN, &win, &ren);
+		sur = sdl_screenshot_display(conn);
+
+		yukino_unlock(conn);
+
+		yukino_disconnect(conn);
+	}
+
+	if (!sur)
+		return 1;
+
+	if (!SDL_CreateWindowAndRenderer(
+		"yukino", sur->w, sur->h, SDL_WINDOW_FULLSCREEN | SDL_WINDOW_HIDDEN, &win, &ren)) {
+		goto end;
+	}
 
 	tex = SDL_CreateTextureFromSurface(ren, sur);
 
@@ -332,8 +341,7 @@ int main(int argc, char *argv[])
 
 	do {
 		float mx, my;
-		int32_t wx, wy;
-		uint32_t ww, wh;
+		yukino_rect_t w;
 
 		SDL_GetMouseState(&mx, &my);
 
@@ -342,12 +350,11 @@ int main(int argc, char *argv[])
 			/* Lol wow SDL has a function for this */
 			SDL_GetRectEnclosingPointsFloat(
 				points, POINTS_MAX_, NULL, &sel);
-		} else if (windows_query_at_point(mx, my, &wx, &wy, &ww, &wh)
-			   == YUKINO_RESULT_OK) {
-			sel.x = wx;
-			sel.y = wy;
-			sel.w = ww;
-			sel.h = wh;
+		} else if (windows_query_at_point(mx, my, &w) == YUKINO_RESULT_OK) {
+			sel.x = w.x;
+			sel.y = w.y;
+			sel.w = w.w;
+			sel.h = w.h;
 		} else {
 			/* Otherwise the "selection" is the window beneath the
 			 * cursor. */
@@ -356,22 +363,7 @@ int main(int argc, char *argv[])
 			sel.h = sur->h;
 		}
 
-		if (sel.x < 0) {
-			sel.w += sel.x;
-			sel.x = 0;
-		}
-
-		if (sel.y < 0) {
-			sel.h += sel.y;
-			sel.y = 0;
-		}
-
-		/* max */
-		if (sel.x + sel.w > sur->w)
-			sel.w = sur->w - sel.x;
-
-		if (sel.y + sel.h > sur->h)
-			sel.h = sur->h - sel.y;
+		fixup(&sel, sur);
 
 		/* Blit. */
 		SDL_RenderClear(ren);
@@ -422,7 +414,6 @@ out:
 	SDL_DestroyRenderer(ren);
 	SDL_DestroyWindow(win);
 	SDL_DestroyCursor(cur);
-	yukino_disconnect(conn);
 
 	if (esc) goto end;
 
@@ -463,4 +454,5 @@ out:
 
 end:
 	SDL_DestroySurface(sur);
+	return 0;
 }

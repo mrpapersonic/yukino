@@ -160,9 +160,6 @@ static yukino_result_t yukino_xcb_window_iter_start(yukino_connection_t *conn,
 {
 	yukino_window_iter_t *wi;
 
-	if (!pwi)
-		return YUKINO_RESULT_INVALID_PARAM;
-
 	wi = calloc(1, sizeof(*wi));
 	if (!wi)
 		return YUKINO_RESULT_OUT_OF_MEMORY;
@@ -282,7 +279,7 @@ static yukino_result_t yukino_xcb_window_iter_end(
 /* XXX: Need a "batch" API of sorts */
 
 static yukino_result_t yukino_xcb_window_position(yukino_connection_t *conn,
-	yukino_window_t win, int32_t *x, int32_t *y, uint32_t *w, uint32_t *h)
+	yukino_window_t win, yukino_rect_t *pr)
 {
 	xcb_get_geometry_cookie_t cookie;
 	xcb_get_geometry_reply_t *reply;
@@ -302,10 +299,10 @@ static yukino_result_t yukino_xcb_window_position(yukino_connection_t *conn,
 		return YUKINO_RESULT_OUT_OF_MEMORY;
 	}
 
-	*x = trreply->dst_x;
-	*y = trreply->dst_y;
-	*w = reply->width;
-	*h = reply->height;
+	pr->x = trreply->dst_x;
+	pr->y = trreply->dst_y;
+	pr->w = reply->width;
+	pr->h = reply->height;
 
 	free(reply);
 	free(trreply);
@@ -316,8 +313,7 @@ static yukino_result_t yukino_xcb_window_position(yukino_connection_t *conn,
 #include <stdio.h>
 
 static yukino_result_t yukino_xcb_window_decorated_position(
-	yukino_connection_t *conn, yukino_window_t win, int32_t *x, int32_t *y,
-	uint32_t *w, uint32_t *h)
+	yukino_connection_t *conn, yukino_window_t win, yukino_rect_t *pr)
 {
 	xcb_get_property_cookie_t deccookie;
 	xcb_get_property_reply_t *decreply;
@@ -328,7 +324,7 @@ static yukino_result_t yukino_xcb_window_decorated_position(
 		conn->conn_data.atoms[ATOM_NET_FRAME_EXTENTS], XCB_ATOM_ANY, 0L,
 		UINT_MAX);
 
-	if ((r = yukino_xcb_window_position(conn, win, x, y, w, h)) < 0)
+	if ((r = yukino_xcb_window_position(conn, win, pr)) < 0)
 		return r;
 
 	decreply
@@ -344,10 +340,10 @@ static yukino_result_t yukino_xcb_window_decorated_position(
 	extents = xcb_get_property_value(decreply);
 
 	/* add it onto the position of the inner window */
-	*x -= extents[0];
-	*y -= extents[2];
-	*w += extents[0] + extents[1];
-	*h += extents[2] + extents[3];
+	pr->x -= extents[0];
+	pr->y -= extents[2];
+	pr->w += extents[0] + extents[1];
+	pr->h += extents[2] + extents[3];
 
 	free(decreply);
 
@@ -373,7 +369,7 @@ static yukino_result_t yukino_xcb_unlock(yukino_connection_t *conn)
 
 static yukino_result_t yukino_xcb_take_window(yukino_connection_t *conn,
 	yukino_window_t win, uint32_t x, uint32_t y, uint32_t w, uint32_t h,
-	yukino_take_pixel pixel_func, void *userdata)
+	yukino_pixel_proc_t pixel_func, void *userdata)
 {
 	xcb_image_t *img;
 
@@ -413,7 +409,7 @@ static yukino_result_t yukino_xcb_take_window(yukino_connection_t *conn,
 }
 
 static yukino_result_t yukino_xcb_take(yukino_connection_t *conn, uint32_t x,
-	uint32_t y, uint32_t w, uint32_t h, yukino_take_pixel pixel_func,
+	uint32_t y, uint32_t w, uint32_t h, yukino_pixel_proc_t pixel_func,
 	void *userdata)
 {
 	return yukino_xcb_take_window(conn,

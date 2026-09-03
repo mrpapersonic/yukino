@@ -19,6 +19,18 @@
 #ifndef YUKINO_H_
 #define YUKINO_H_
 
+#ifdef _WIN32
+# ifdef YUKINO_BUILD
+#  define YUKINO_EXTERN __declspec(dllexport) extern
+# else
+#  define YUKINO_EXTERN __declspec(dllimport) extern
+# endif
+#elif defined(__GNUC__)
+# define YUKINO_EXTERN __attribute__((__visibility__("default"))) extern
+#else
+# define YUKINO_EXTERN extern
+#endif
+
 /* don't care about c89 */
 #include <stdint.h>
 #include <stdlib.h>
@@ -61,99 +73,93 @@ enum {
 /* ------------------------------------------------------------------------ */
 /* connect to the display */
 
-yukino_result_t yukino_connect(yukino_connection_t **conn);
-yukino_result_t yukino_disconnect(yukino_connection_t *conn);
+YUKINO_EXTERN yukino_result_t yukino_connect(yukino_connection_t **conn);
+YUKINO_EXTERN yukino_result_t yukino_disconnect(yukino_connection_t *conn);
 
 /* ------------------------------------------------------------------------ */
 /* act on the display ... not much else is useful here */
 
-yukino_result_t yukino_display_resolution(
+YUKINO_EXTERN yukino_result_t yukino_display_resolution(
 	yukino_connection_t *conn, uint32_t *w, uint32_t *h);
 
 /* ------------------------------------------------------------------------ */
 /* iterate through windows */
 
 /* On X11, this loops from the backmost window to the frontmost window. */
-yukino_result_t yukino_window_iter_start(yukino_connection_t *conn,
+YUKINO_EXTERN yukino_result_t yukino_window_iter_start(yukino_connection_t *conn,
 	const yukino_window_t *win, /* NULL == operate on the root window */
 	yukino_window_iter_t **pwi);
-yukino_result_t yukino_window_iter(yukino_connection_t *conn,
+YUKINO_EXTERN yukino_result_t yukino_window_iter(yukino_connection_t *conn,
 	yukino_window_iter_t *wi, yukino_window_t *pw);
-yukino_result_t yukino_window_iter_end(
+YUKINO_EXTERN yukino_result_t yukino_window_iter_end(
 	yukino_connection_t *conn, yukino_window_iter_t *wi);
 
 /* ------------------------------------------------------------------------ */
 /* window utils */
 
 /* XXX have a yukino_rect instead? */
-yukino_result_t yukino_window_position(yukino_connection_t *conn,
-	yukino_window_t win, int32_t *x, int32_t *y, uint32_t *w, uint32_t *h);
+YUKINO_EXTERN yukino_result_t yukino_window_position(yukino_connection_t *conn,
+	yukino_window_t win, yukino_rect_t *pr);
 
-yukino_result_t yukino_window_decorated_position(yukino_connection_t *conn,
-	yukino_window_t win, int32_t *x, int32_t *y, uint32_t *w, uint32_t *h);
+YUKINO_EXTERN yukino_result_t yukino_window_decorated_position(yukino_connection_t *conn,
+	yukino_window_t win, yukino_rect_t *pr);
 
 /* ------------------------------------------------------------------------ */
 /* display lock/unlock. this could come in handy if say, we wanted to take
- * a full display yukino, take note of the position of all of the
+ * a full display screenshot, take note of the position of all of the
  * windows, and THEN let the user crop it
  *
  * BUT if we crash we'd end up leaving x11 in a buggy state ... */
 
-yukino_result_t yukino_lock(yukino_connection_t *conn);
-yukino_result_t yukino_unlock(yukino_connection_t *conn);
+YUKINO_EXTERN yukino_result_t yukino_lock(yukino_connection_t *conn);
+YUKINO_EXTERN yukino_result_t yukino_unlock(yukino_connection_t *conn);
 
 /* ------------------------------------------------------------------------ */
-/* take a yukino */
+/* simple image writers -- these compile to a few kilobyte each
+ *
+ * if zlib is compiled in, then clearly png is the best choice. */
 
 /* writes a pixel value */
-typedef yukino_result_t (*yukino_take_pixel)(
+typedef yukino_result_t (*yukino_pixel_proc_t)(
 	void *userdata, unsigned char rgb[3]);
 
-yukino_result_t yukino_take(yukino_connection_t *conn, uint32_t x, uint32_t y,
-	uint32_t w, uint32_t h, yukino_take_pixel pixel_func, void *userdata);
-
+/* writes bytes ... */
 typedef yukino_result_t (*yukino_write_cb)(
 	void *userdata, const void *bytes, size_t size);
 
-/* for supplying custom yukino_take functions
- * this effectively makes us a very shitty image writing library
- * with absolutely no compression! */
-typedef yukino_result_t (*yukino_take_t)(void *conn, uint32_t x, uint32_t y,
-	uint32_t w, uint32_t h, yukino_take_pixel pixel_func, void *userdata);
+/* image iteration function */
+typedef yukino_result_t (*yukino_image_proc_t)(void *conn, uint32_t x, uint32_t y,
+	uint32_t w, uint32_t h, yukino_pixel_proc_t pixel_func, void *userdata);
 
-yukino_result_t yukino_write_ppm(uint32_t x, uint32_t y, uint32_t w, uint32_t h,
-	yukino_write_cb write_cb, void *write_data, yukino_take_t take_cb,
-	void *take_data);
+/* writes an image in the given format */
+#define YUKINO_WRITE(N) \
+	YUKINO_EXTERN yukino_result_t yukino_write_##N(uint32_t x, uint32_t y, uint32_t w, uint32_t h, \
+		yukino_write_cb write_cb, void *write_data, yukino_image_proc_t take_cb, \
+		void *take_data);
 
-yukino_result_t yukino_write_png(uint32_t x, uint32_t y, uint32_t w, uint32_t h,
-	yukino_write_cb write_cb, void *write_data, yukino_take_t take_cb,
-	void *take_data);
+YUKINO_WRITE(bmp)
+YUKINO_WRITE(png)
+YUKINO_WRITE(ppm)
 
-yukino_result_t yukino_write_bmp(uint32_t x, uint32_t y, uint32_t w, uint32_t h,
-	yukino_write_cb write_cb, void *write_data, yukino_take_t take_cb,
-	void *take_data);
+#undef YUKINO_WRITE
 
-/* .ppm output */
-yukino_result_t yukino_take_ppm(yukino_connection_t *conn, uint32_t x,
-	uint32_t y, uint32_t w, uint32_t h, yukino_write_cb write_cb,
-	void *userdata);
+/* ------------------------------------------------------------------------ */
+/* take a screenshot */
 
-/* .png output */
-yukino_result_t yukino_take_png(yukino_connection_t *conn, uint32_t x,
-	uint32_t y, uint32_t w, uint32_t h, yukino_write_cb write_cb,
-	void *userdata);
+YUKINO_EXTERN yukino_result_t yukino_screenshot(yukino_connection_t *conn, uint32_t x, uint32_t y,
+	uint32_t w, uint32_t h, yukino_pixel_proc_t pixel_func, void *userdata);
 
-/* wrapper over yukino_window_iter */
-yukino_result_t yukino_window_children(yukino_connection_t *conn,
-	yukino_window_iter_t *wi, yukino_window_t **pwin, size_t *pwinsz);
-yukino_result_t yukino_window_children_free(
-	yukino_connection_t *conn, yukino_window_t *winlist, size_t winsz);
+#define YUKINO_SCREENSHOT(N) \
+	YUKINO_EXTERN yukino_result_t yukino_screenshot_##N(yukino_connection_t *conn, uint32_t x, uint32_t y, \
+		uint32_t w, uint32_t h, yukino_write_cb write_cb, void *userdata);
 
-/* skeeee */
-yukino_result_t yukino_query_window_at_point(
-	yukino_connection_t *conn, yukino_window_t *pwin, int32_t x, int32_t y);
+YUKINO_SCREENSHOT(ppm)
+YUKINO_SCREENSHOT(png)
+YUKINO_SCREENSHOT(bmp)
 
-yukino_result_t yukino_rect_has_point(
+#undef YUKINO_SCREENSHOT
+
+YUKINO_EXTERN yukino_result_t yukino_rect_has_point(
 	const yukino_rect_t *r, int32_t x, int32_t y);
 
 #endif
