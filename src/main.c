@@ -127,7 +127,7 @@ static yukino_result_t stdio_write_cb(void *opaque, const void *data, size_t sz)
 }
 
 static void sdl_write_surface_to_png(
-	const char *f, SDL_Surface *sur, SDL_FRect *rect)
+	const char *f, SDL_Surface *sur, const yukino_rect_t *rect)
 {
 	FILE *fp;
 
@@ -145,26 +145,21 @@ static void sdl_write_surface_to_png(
 /* file dialog */
 
 struct dialog_cb {
-	/* Contains the full screenshot of the desktop */
-	SDL_Surface *sur;
-
-	/* The selection to save */
-	SDL_FRect sel;
-
+	/* Only need the pointer */
 	char *file;
-	int done;
+
+	/* Gets signaled when the dialog callback is finished */
+	SDL_Semaphore *sem;
 };
 
 static void dialog_cb(void *userdata, const char *const *filelist, int filter)
 {
 	volatile struct dialog_cb *c = (volatile struct dialog_cb *)userdata;
 
-	if (filelist && *filelist) {
-		/* filelist[0] = the file path to save in */
+	if (filelist && *filelist)
 		c->file = strdup(filelist[0]);
-	}
 
-	c->done = 1;
+	SDL_SignalSemaphore(c->sem);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -194,6 +189,8 @@ static void windows_fill(yukino_connection_t *conn)
 		return;
 
 	while (yukino_window_iter(conn, wi, &win) == YUKINO_RESULT_OK) {
+		struct window *w;
+
 		/* allocate more space? */
 		if (windows_size >= windows_alloc) {
 			void *old = windows;
@@ -211,12 +208,15 @@ static void windows_fill(yukino_connection_t *conn)
 			}
 		}
 
-		if (yukino_window_position(conn, win, &windows[windows_size].rect) < 0)
+		w = &windows[windows_size];
+
+		if (yukino_window_position(conn, win, &w->rect) < 0)
 			continue; /* ??? */
 
-		if (yukino_window_decorated_position(conn, win, &windows[windows_size].border) >= 0)
-			windows[windows_size].have_border = 1;
-		windows[windows_size].win = win;
+		if (yukino_window_decorated_position(conn, win, &w->border)
+			>= 0)
+			w->have_border = 1;
+		w->win = win;
 
 		windows_size++;
 	}
@@ -224,7 +224,8 @@ static void windows_fill(yukino_connection_t *conn)
 	yukino_window_iter_end(conn, wi);
 }
 
-static yukino_result_t windows_query_at_point(int32_t x, int32_t y, yukino_rect_t *pr)
+static yukino_result_t windows_query_at_point(
+	int32_t x, int32_t y, yukino_rect_t *pr)
 {
 	/* there may be no window under the pointer -- in that case return
 	 * YUKINO_RESULT_NONE */
@@ -268,6 +269,23 @@ static void fixup(SDL_FRect *rect, SDL_Surface *sur)
 	fixup_xw(&rect->y, &rect->h, sur->h);
 }
 
+/* for scaling points into pixels */
+static void points_to_pixels(yukino_rect_t *out, const SDL_FRect *in, float density)
+{
+	out->x = SDL_lroundf(in->x * density);
+	out->y = SDL_lroundf(in->y * density);
+	out->w = SDL_lroundf(in->w * density);
+	out->h = SDL_lroundf(in->h * density);
+}
+
+static void pixels_to_points(SDL_FRect *out, const yukino_rect_t *in, float density)
+{
+	out->x = in->x / density;
+	out->y = in->y / density;
+	out->w = in->w / density;
+	out->h = in->h / density;
+}
+
 int main(int argc, char *argv[])
 {
 	SDL_Surface *sur;
@@ -289,9 +307,10 @@ int main(int argc, char *argv[])
 	int opt;
 	static struct option long_opts[] = {
 		{"output", required_argument, 0, 'o'},
-                {0}
-        };
-        int esc = 0;
+		{0},
+	};
+	int esc = 0;
+	float density;
 
 	/* parse command line opts */
 	while ((opt = getopt_long(argc, argv, "o:", long_opts, NULL)) != -1) {
@@ -315,6 +334,8 @@ int main(int argc, char *argv[])
 		if (yukino_connect(&conn) < 0)
 			return 1; /* oops */
 
+		/* Doesn't matter if locking and unlocking fails..
+		 * It's only here in an attempt to maintain state */
 		yukino_lock(conn);
 
 		windows_fill(conn);
@@ -329,10 +350,12 @@ int main(int argc, char *argv[])
 	if (!sur)
 		return 1;
 
-	if (!SDL_CreateWindowAndRenderer(
-		"yukino", sur->w, sur->h, SDL_WINDOW_FULLSCREEN | SDL_WINDOW_HIDDEN, &win, &ren)) {
+	if (!SDL_CreateWindowAndRenderer("yukino", sur->w, sur->h,
+		    SDL_WINDOW_FULLSCREEN | SDL_WINDOW_HIDDEN | SDL_WINDOW_HIGH_PIXEL_DENSITY, &win, &ren)) {
 		goto end;
 	}
+
+	density = SDL_GetWindowPixelDensity(win);
 
 	tex = SDL_CreateTextureFromSurface(ren, sur);
 
@@ -345,27 +368,30 @@ int main(int argc, char *argv[])
 
 		SDL_GetMouseState(&mx, &my);
 
+		/* ugh */
+		mx *= density;
+		my *= density;
+
 		/* Adjust selection */
 		if (drag) {
 			/* Lol wow SDL has a function for this */
 			SDL_GetRectEnclosingPointsFloat(
 				points, POINTS_MAX_, NULL, &sel);
 		} else if (windows_query_at_point(mx, my, &w) == YUKINO_RESULT_OK) {
-			sel.x = w.x;
-			sel.y = w.y;
-			sel.w = w.w;
-			sel.h = w.h;
+			pixels_to_points(&sel, &w, density);
 		} else {
 			/* Otherwise the "selection" is the window beneath the
 			 * cursor. */
 			sel.x = sel.y = 0;
-			sel.w = sur->w;
-			sel.h = sur->h;
+			sel.w = sur->w / density;
+			sel.h = sur->h / density;
 		}
 
+		/* crop any out-of-bounds selections (can happen if a window is
+		 * partially offscreen) */
 		fixup(&sel, sur);
 
-		/* Blit. */
+		/* now we begin our blitting journey */
 		SDL_RenderClear(ren);
 
 		/* Apparently not supported everywhere... we'd need to store a
@@ -379,7 +405,9 @@ int main(int argc, char *argv[])
 
 		SDL_RenderPresent(ren);
 
-		/* show the window once we have finished rendering */
+		/* When we create our window, it's hidden, to avoid showing a huge
+		 * blank window on startup. Now we want to show the window since
+		 * it's done rendering. */
 		SDL_ShowWindow(win);
 
 		switch (ev.type) {
@@ -415,14 +443,14 @@ out:
 	SDL_DestroyWindow(win);
 	SDL_DestroyCursor(cur);
 
-	if (esc) goto end;
+	/* User wants to exit out, so do it */
+	if (esc)
+		goto end;
 
 	if (!file) {
 		/* Ask the user where to save the damn file */
 		volatile struct dialog_cb c;
-		c.sur = sur;
-		c.sel = sel;
-		c.done = 0;
+		c.sem = SDL_CreateSemaphore(1);
 		c.file = NULL;
 
 		static const SDL_DialogFileFilter filters[] = {
@@ -433,22 +461,17 @@ out:
 		SDL_ShowSaveFileDialog(dialog_cb, (void *)&c, NULL, filters,
 			SDL_arraysize(filters), NULL);
 
-		/* Busy wait for the file dialog to do its thing */
-		while (!c.done) {
-			/* Handle events here */
-			while (SDL_PollEvent(&ev))
-				;
-
-			/* Then sleep... */
-			SDL_Delay(10);
-		}
+		SDL_WaitSemaphore(c.sem);
+		SDL_DestroySemaphore(c.sem);
 
 		file = c.file;
 	}
 
 	/* Save it */
 	if (file) {
-		sdl_write_surface_to_png(file, sur, &sel);
+		yukino_rect_t w;
+		points_to_pixels(&w, &sel, density);
+		sdl_write_surface_to_png(file, sur, &w);
 		free(file);
 	}
 
