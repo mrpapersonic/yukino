@@ -72,7 +72,7 @@ static SDL_Surface *sdl_yukino(yukino_connection_t *conn, uint32_t x,
 	return s.sur;
 }
 
-/* Takes a yukino of the whole display */
+/* Takes a screenshot of the whole display */
 static SDL_Surface *sdl_yukino_display(yukino_connection_t *conn)
 {
 	yukino_result_t r;
