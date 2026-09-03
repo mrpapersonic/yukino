@@ -19,14 +19,23 @@
 #include "yukino.h"
 #include "yukino_c.h"
 
+#ifdef YUKINO_ZLIB
+# include <zlib.h>
+#endif
+
 struct png {
 	/* current chunk crc */
 	uint32_t crc;
 
+#ifdef YUKINO_ZLIB
+	/* ;) */
+	z_stream strm;
+#else
 	/* calculated size of image data (w * h * 3) */
 	uint32_t sz;
 
 	uint16_t j;
+#endif
 
 	/* need this because png is stupid */
 	uint32_t x, w;
@@ -111,6 +120,7 @@ static yukino_result_t png_write_u32be(struct png *png, uint32_t u)
 	return YUKINO_RESULT_OK;
 }
 
+#ifndef YUKINO_ZLIB
 static yukino_result_t png_deflate_header_impl(
 	struct png *png, unsigned char b, uint16_t sz)
 {
@@ -135,10 +145,20 @@ static yukino_result_t png_deflate_header(struct png *png, size_t sz)
 	return (sz > 65535) ? png_deflate_header_impl(png, 0, 65535)
 			    : png_deflate_header_impl(png, 1, sz);
 }
+#endif
 
 static yukino_result_t png_deflate_write(
 	struct png *png, const void *b_, size_t sz)
 {
+#ifdef YUKINO_ZLIB
+	png->strm.next_in = b_;
+	png->strm.avail_in = sz;
+
+	if (deflate(&png->strm, Z_NO_FLUSH) < 0)
+		return YUKINO_RESULT_OUT_OF_MEMORY;
+
+	return YUKINO_RESULT_OK;
+#else
 	yukino_result_t r;
 	const unsigned char *b = b_;
 
@@ -167,10 +187,33 @@ static yukino_result_t png_deflate_write(
 	}
 
 	return YUKINO_RESULT_OK;
+#endif
 }
 
 static yukino_result_t png_zlib_header(struct png *png, size_t sz)
 {
+#ifdef YUKINO_ZLIB
+	uLong bound;
+
+	png->strm.zalloc = NULL;
+	png->strm.zfree  = NULL;
+	png->strm.opaque = NULL;
+
+	if (deflateInit(&png->strm, Z_DEFAULT_COMPRESSION) != Z_OK)
+		return YUKINO_RESULT_OUT_OF_MEMORY;
+
+	bound = deflateBound(&png->strm, sz);
+
+	png->strm.next_out = malloc(bound);
+	if (!png->strm.next_out) {
+		deflateEnd(&png->strm);
+		return YUKINO_RESULT_OUT_OF_MEMORY;
+	}
+
+	png->strm.avail_out = bound;
+
+	return YUKINO_RESULT_OK;
+#else
 	/* init adler-32 */
 	yukino_adler32_init(&png->a32);
 
@@ -179,13 +222,20 @@ static yukino_result_t png_zlib_header(struct png *png, size_t sz)
 
 	/* write the zlib header */
 	return png_write(png, "\x78\x01", 2);
+#endif
 }
 
 static yukino_result_t png_zlib_footer(struct png *png)
 {
-	uint32_t a32 = yukino_adler32_get(&png->a32);
+#ifdef YUKINO_ZLIB
+	if (deflate(&png->strm, Z_FINISH) != Z_STREAM_END)
+		return YUKINO_RESULT_OUT_OF_MEMORY;
 
-	return png_write_u32be(png, a32);
+	deflateEnd(&png->strm);
+	return YUKINO_RESULT_OK;
+#else
+	return png_write_u32be(png, yukino_adler32_get(&png->a32));
+#endif
 }
 
 static yukino_result_t png_chunk_head(
@@ -263,9 +313,24 @@ yukino_result_t yukino_write_png(uint32_t x, uint32_t y, uint32_t w, uint32_t h,
 	 * we also need the data size *before*, so we gotta
 	 * do some calculamalations */
 	{
-		uint32_t imgsz, sz;
+		uint32_t imgsz = (w * h * 3) + h;
 
-		imgsz = (w * h * 3) + h;
+#ifdef YUKINO_ZLIB
+		/* write the zlib header first */
+		png_zlib_header(&png, imgsz);
+
+		/* ... FINALLY */
+		take_cb(take_data, x, y, w, h, png_cb, &png);
+
+		png_zlib_footer(&png);
+
+		png_chunk_head(&png, "IDAT", png.strm.total_out);
+
+		png_write(&png, png.strm.next_out - png.strm.total_out, png.strm.total_out);
+
+		png_chunk_tail(&png);
+#else
+		uint32_t sz;
 
 		/* zlib hdr, uncompressed data, deflate headers, zlib adler32 */
 		sz = 2 + imgsz + (5 * ((imgsz + 65534) / 65535)) + 4;
@@ -281,6 +346,7 @@ yukino_result_t yukino_write_png(uint32_t x, uint32_t y, uint32_t w, uint32_t h,
 		png_zlib_footer(&png);
 
 		png_chunk_tail(&png);
+#endif
 	}
 
 	/* GET ME A CHEESE WITH NOTTIN */

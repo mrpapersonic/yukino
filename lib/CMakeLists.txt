@@ -21,6 +21,7 @@ project(libyukino LANGUAGES C VERSION 0.1.0)
 find_package(PkgConfig REQUIRED)
 
 pkg_check_modules(XCB xcb xcb-image)
+pkg_check_modules(ZLIB zlib)
 
 # Make these empty for now
 set(LIBRARIES "")
@@ -34,6 +35,12 @@ if(XCB_FOUND)
 	list(APPEND INCLUDE ${XCB_INCLUDE_DIRS})
 	list(APPEND SRC_FILES sys/xcb.c)
 	list(APPEND DEFINES "-DYUKINO_XCB=1")
+endif()
+
+if(ZLIB_FOUND)
+	list(APPEND LIBRARIES ${ZLIB_LINK_LIBRARIES})
+	list(APPEND INCLUDE ${ZLIB_INCLUDE_DIRS})
+	list(APPEND DEFINES "-DYUKINO_ZLIB=1")
 endif()
 
 add_library(libyukino ${SRC_FILES})
