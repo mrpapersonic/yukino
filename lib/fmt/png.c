@@ -39,19 +39,26 @@ struct png {
 };
 
 /* byteswap to/from big endian */
-static uint16_t png_bswap16(uint16_t x)
+static uint16_t png_bswap16be(uint16_t x)
 {
 	const unsigned char *px = (const unsigned char *)&x;
 
 	return (px[1]) | ((uint16_t)px[0] << 8);
 }
 
-static uint32_t png_bswap32(uint32_t x)
+static uint32_t png_bswap32be(uint32_t x)
 {
 	const unsigned char *px = (const unsigned char *)&x;
 
 	return (px[3]) | ((uint32_t)px[2] << 8) | ((uint32_t)px[1] << 16)
 	       | ((uint32_t)px[0] << 24);
+}
+
+static uint16_t png_bswap16le(uint16_t x)
+{
+	const unsigned char *px = (const unsigned char *)&x;
+
+	return px[0] | ((uint16_t)px[1] << 8);
 }
 
 /* big write function */
@@ -68,11 +75,11 @@ static yukino_result_t png_write(struct png *png, const void *bytes, size_t sz)
 	return YUKINO_RESULT_OK;
 }
 
-static yukino_result_t png_write_u16(struct png *png, uint16_t u)
+static yukino_result_t png_write_u16be(struct png *png, uint16_t u)
 {
 	yukino_result_t r;
 
-	u = png_bswap16(u);
+	u = png_bswap16be(u);
 
 	if ((r = png_write(png, &u, sizeof(u))) < 0)
 		return r;
@@ -80,11 +87,23 @@ static yukino_result_t png_write_u16(struct png *png, uint16_t u)
 	return YUKINO_RESULT_OK;
 }
 
-static yukino_result_t png_write_u32(struct png *png, uint32_t u)
+static yukino_result_t png_write_u16le(struct png *png, uint16_t u)
 {
 	yukino_result_t r;
 
-	u = png_bswap32(u);
+	u = png_bswap16le(u);
+
+	if ((r = png_write(png, &u, sizeof(u))) < 0)
+		return r;
+
+	return YUKINO_RESULT_OK;
+}
+
+static yukino_result_t png_write_u32be(struct png *png, uint32_t u)
+{
+	yukino_result_t r;
+
+	u = png_bswap32be(u);
 
 	if ((r = png_write(png, &u, sizeof(u))) < 0)
 		return r;
@@ -100,10 +119,10 @@ static yukino_result_t png_deflate_header_impl(
 	if ((r = png_write(png, &b, 1)) < 0)
 		return r;
 
-	if ((r = png_write_u16(png, sz)) < 0)
+	if ((r = png_write_u16le(png, sz)) < 0)
 		return r;
 
-	if ((r = png_write_u16(png, ~sz)) < 0)
+	if ((r = png_write_u16le(png, ~sz)) < 0)
 		return r;
 
 	png->j = sz;
@@ -166,7 +185,7 @@ static yukino_result_t png_zlib_footer(struct png *png)
 {
 	uint32_t a32 = yukino_adler32_get(&png->a32);
 
-	return png_write_u32(png, a32);
+	return png_write_u32be(png, a32);
 }
 
 static yukino_result_t png_chunk_head(
@@ -174,7 +193,7 @@ static yukino_result_t png_chunk_head(
 {
 	yukino_result_t r;
 
-	if ((r = png_write_u32(png, sz)) < 0)
+	if ((r = png_write_u32be(png, sz)) < 0)
 		return r;
 
 	/* Reset the CRC */
@@ -189,7 +208,7 @@ static yukino_result_t png_chunk_tail(struct png *png)
 {
 	yukino_result_t r;
 
-	if ((r = png_write_u32(png, ~png->crc)) < 0)
+	if ((r = png_write_u32be(png, ~png->crc)) < 0)
 		return r;
 
 	return YUKINO_RESULT_OK;
@@ -233,8 +252,8 @@ yukino_result_t yukino_write_png(uint32_t x, uint32_t y, uint32_t w, uint32_t h,
 	if ((r = png_chunk_head(&png, "IHDR", 13)) < 0)
 		return r;
 
-	png_write_u32(&png, w);
-	png_write_u32(&png, h);
+	png_write_u32be(&png, w);
+	png_write_u32be(&png, h);
 	png_write(&png, "\x08\x02\x00\x00\x00", 5);
 
 	png_chunk_tail(&png);
