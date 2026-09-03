@@ -188,7 +188,6 @@ static size_t windows_alloc;
 static void windows_fill(yukino_connection_t *conn)
 {
 	yukino_window_iter_t *wi;
-	yukino_result_t rr;
 	yukino_window_t win;
 
 	if (yukino_window_iter_start(conn, NULL, &wi) < 0)
