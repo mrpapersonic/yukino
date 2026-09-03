@@ -23,6 +23,8 @@
 
 #include <stdio.h>
 
+#include <getopt.h>
+
 /* ------------------------------------------------------------------------ */
 /* grab the whole screen and shove it into a SDL_Surface */
 
@@ -289,6 +291,25 @@ int main(int argc, char *argv[])
 	};
 	SDL_FPoint points[POINTS_MAX_];
 	int down = 0, drag = 0;
+	char *file = NULL; /* output file */
+	int opt;
+	static struct option long_opts[] = {
+		{"output", required_argument, 0, 'o' },
+		{0}
+	};
+
+	/* parse command line opts */
+	while ((opt = getopt_long(argc, argv, "o:", long_opts, NULL)) != -1) {
+		switch (opt) {
+		case 'o':
+			/* output file */
+			file = strdup(optarg);
+			break;
+		default:
+			fprintf(stderr, "usage: %s [-o output.png]\n", argv[0]);
+			return 1;
+		}
+	}
 
 	if (yukino_connect(&conn) < 0)
 		return 1; /* oops */
@@ -381,35 +402,39 @@ out:;
 	SDL_DestroyCursor(cur);
 	yukino_disconnect(conn);
 
-	/* Ask the user where to save the damn file */
-	volatile struct dialog_cb c;
-	c.sur = sur;
-	c.sel = sel;
-	c.done = 0;
-	c.file = NULL;
+	if (!file) {
+		/* Ask the user where to save the damn file */
+		volatile struct dialog_cb c;
+		c.sur = sur;
+		c.sel = sel;
+		c.done = 0;
+		c.file = NULL;
 
-	static const SDL_DialogFileFilter filters[] = {
-		{"PNG (Portable Network Graphics)", "png"},
-                {"All files",                       "*"  }
-        };
+		static const SDL_DialogFileFilter filters[] = {
+			{"PNG (Portable Network Graphics)", "png"},
+	                {"All files",                       "*"  }
+	        };
 
-	SDL_ShowSaveFileDialog(dialog_cb, (void *)&c, NULL, filters,
-		SDL_arraysize(filters), NULL);
+		SDL_ShowSaveFileDialog(dialog_cb, (void *)&c, NULL, filters,
+			SDL_arraysize(filters), NULL);
 
-	/* Busy wait for the file dialog to do its thing */
-	while (!c.done) {
-		/* Handle events here */
-		while (SDL_PollEvent(&ev))
-			;
+		/* Busy wait for the file dialog to do its thing */
+		while (!c.done) {
+			/* Handle events here */
+			while (SDL_PollEvent(&ev))
+				;
 
-		/* Then sleep... */
-		SDL_Delay(10);
+			/* Then sleep... */
+			SDL_Delay(10);
+		}
+
+		file = c.file;
 	}
 
 	/* Save it */
-	if (c.file) {
-		sdl_write_surface_to_png(c.file, sur, &sel);
-		free(c.file);
+	if (file) {
+		sdl_write_surface_to_png(file, sur, &sel);
+		free(file);
 	}
 
 	SDL_DestroySurface(sur);
