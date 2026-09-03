@@ -16,7 +16,7 @@
  * License along with this library; if not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "../yukino.h"
+#include "yukino.h"
 
 struct cbuserdata {
 	yukino_write_cb write_cb;
@@ -66,29 +66,31 @@ static size_t u32tostr(uint32_t x, char s[10])
 	return pl;
 }
 
+static yukino_result_t write_u32str(
+	yukino_write_cb write_cb, void *userdata, uint32_t x)
+{
+	char xx[10];
+
+	return write_cb(userdata, xx, u32tostr(x, xx));
+}
+
 yukino_result_t yukino_write_ppm(uint32_t x, uint32_t y, uint32_t w, uint32_t h,
 	yukino_write_cb write_cb, void *userdata, yukino_take_t take_cb,
 	void *take_data)
 {
 	struct cbuserdata ud = {write_cb, userdata};
-	char xx[10];
-	size_t sz;
 	yukino_result_t r;
 
 	if ((r = write_cb(userdata, "P6\n", 3)) < 0)
 		return r;
 
-	sz = u32tostr(w, xx);
-
-	if ((r = write_cb(userdata, xx, sz)) < 0)
+	if ((r = write_u32str(write_cb, userdata, w)) < 0)
 		return r;
 
 	if ((r = write_cb(userdata, " ", 1)) < 0)
 		return r;
 
-	sz = u32tostr(h, xx);
-
-	if ((r = write_cb(userdata, xx, sz)) < 0)
+	if ((r = write_u32str(write_cb, userdata, h)) < 0)
 		return r;
 
 	if ((r = write_cb(userdata, "\n255\n", 5)) < 0)
