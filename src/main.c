@@ -186,15 +186,14 @@ static void windows_fill(yukino_connection_t *conn)
 	yukino_result_t rr;
 	yukino_window_t win;
 
-	if ((rr = yukino_window_iter_start(conn, NULL, &wi)) < 0)
+	if (yukino_window_iter_start(conn, NULL, &wi) < 0)
 		return;
 
-	while ((rr = yukino_window_iter(conn, wi, &win)) == YUKINO_RESULT_OK) {
+	while (yukino_window_iter(conn, wi, &win) == YUKINO_RESULT_OK) {
 		int32_t wx, wy;
 		uint32_t ww, wh;
 
-		if ((rr = yukino_window_position(conn, win, &wx, &wy, &ww, &wh))
-			< 0)
+		if (yukino_window_position(conn, win, &wx, &wy, &ww, &wh) < 0)
 			continue; /* ??? */
 
 		/* allocate more space? */
