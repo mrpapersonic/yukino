@@ -135,7 +135,7 @@ static void sdl_write_surface_to_png(
 	if (!fp)
 		return; /* oops */
 
-	yukino_write_ppm(rect->x, rect->y, rect->w, rect->h, stdio_write_cb, fp,
+	yukino_write_png(rect->x, rect->y, rect->w, rect->h, stdio_write_cb, fp,
 		sdl_take_cb, sur);
 
 	fclose(fp);
@@ -296,6 +296,7 @@ int main(int argc, char *argv[])
 		{"output", required_argument, 0, 'o'},
                 {0}
         };
+        int esc = 0;
 
 	/* parse command line opts */
 	while ((opt = getopt_long(argc, argv, "o:", long_opts, NULL)) != -1) {
@@ -322,7 +323,7 @@ int main(int argc, char *argv[])
 	yukino_unlock(conn);
 
 	SDL_CreateWindowAndRenderer(
-		"yukino", sur->w, sur->h, SDL_WINDOW_FULLSCREEN, &win, &ren);
+		"yukino", sur->w, sur->h, SDL_WINDOW_FULLSCREEN | SDL_WINDOW_HIDDEN, &win, &ren);
 
 	tex = SDL_CreateTextureFromSurface(ren, sur);
 
@@ -386,6 +387,9 @@ int main(int argc, char *argv[])
 
 		SDL_RenderPresent(ren);
 
+		/* show the window once we have finished rendering */
+		SDL_ShowWindow(win);
+
 		switch (ev.type) {
 		case SDL_EVENT_MOUSE_BUTTON_DOWN:
 			down = 1;
@@ -399,15 +403,17 @@ int main(int argc, char *argv[])
 			points[POINTS_DRAG].y = ev.motion.y;
 			break;
 		case SDL_EVENT_KEY_DOWN:
-			if (ev.key.key == SDLK_ESCAPE)
-				break;
+			if (ev.key.key == SDLK_ESCAPE) {
+				esc = 1;
+				goto out;
+			}
 			break;
 		case SDL_EVENT_MOUSE_BUTTON_UP:
 			goto out;
 		}
 	} while (SDL_WaitEvent(&ev));
 
-out:;
+out:
 	/* We're done here, and hopefully we have a selection (right?)
 	 * So, take what we have, and shove it into the png writer */
 
@@ -417,6 +423,8 @@ out:;
 	SDL_DestroyWindow(win);
 	SDL_DestroyCursor(cur);
 	yukino_disconnect(conn);
+
+	if (esc) goto end;
 
 	if (!file) {
 		/* Ask the user where to save the damn file */
@@ -453,5 +461,6 @@ out:;
 		free(file);
 	}
 
+end:
 	SDL_DestroySurface(sur);
 }
