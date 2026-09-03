@@ -21,6 +21,10 @@
 
 #include "yukino.h"
 
+#if defined(__x86_64__)
+# define YUKINO_64BIT_ADLER32 1
+#endif
+
 #ifdef __GNUC__
 # define YUKINO_INLINE static inline __attribute__((__always_inline__))
 #else
@@ -63,11 +67,18 @@ struct yukino_connection {
 /* CRC32 with the PNG polynomial */
 uint32_t yukino_crc32(uint32_t crc, const unsigned char *msg, size_t sz);
 
-/* Adler-32. This requires a special getter function that crc32
- * does not, due to the way it operates. */
+/* Adler-32.
+ *
+ * Due to the way we calculate the hash, it is significantly faster to
+ * do this all here. */
 struct yukino_adler32 {
+#ifdef YUKINO_64BIT_ADLER32
+	uint64_t a, b;
+#else
 	uint32_t a, b;
+#endif
 
+	/* this can stay 32-bit */
 	uint32_t n;
 };
 

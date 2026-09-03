@@ -18,8 +18,25 @@
 
 #include "yukino_c.h"
 
-#define A32N_MOD 65521U
-#define A32N_MAX 5552 /* magic */
+/*
+   To calculate A32N_MAX for a given integer, we have to find the maximum
+   number of additions we have that can fit inside the integer. That number
+   can be found as such:
+
+           f(n) = 255n((n+1)/2)+(n+1)(BASE-1)
+
+   Finding out where it overflows is essentially a case of inversing this
+   function and plugging in ((2^(BITS))-1). The results of this operation
+   truncated to an integer are shown below, for 64-bit and 32-bit respectively.
+*/
+
+#ifdef YUKINO_64BIT_ADLER32
+# define A32N_MAX UINT32_C(380368439)
+# define A32N_MOD UINT64_C(65521)
+#else
+# define A32N_MAX UINT32_C(5552)
+# define A32N_MOD UINT32_C(65521)
+#endif
 
 static void yukino_adler32_mod(struct yukino_adler32 *a32)
 {
