@@ -129,6 +129,10 @@ yukino_result_t yukino_write_png(uint32_t x, uint32_t y, uint32_t w, uint32_t h,
 	yukino_write_cb write_cb, void *write_data, yukino_take_t take_cb,
 	void *take_data);
 
+yukino_result_t yukino_write_bmp(uint32_t x, uint32_t y, uint32_t w, uint32_t h,
+	yukino_write_cb write_cb, void *write_data, yukino_take_t take_cb,
+	void *take_data);
+
 /* .ppm output */
 yukino_result_t yukino_take_ppm(yukino_connection_t *conn, uint32_t x,
 	uint32_t y, uint32_t w, uint32_t h, yukino_write_cb write_cb,
