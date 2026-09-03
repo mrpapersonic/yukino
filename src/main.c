@@ -172,8 +172,11 @@ static void dialog_cb(void *userdata, const char *const *filelist, int filter)
 struct window {
 	yukino_window_t win;
 
-	int32_t x, y;
-	uint32_t w, h;
+	unsigned int have_border : 1;
+
+	/* 'border' is 'rect' with WM borders applied */
+	yukino_rect_t rect;
+	yukino_rect_t border;
 };
 
 static struct window *windows;
@@ -190,8 +193,8 @@ static void windows_fill(yukino_connection_t *conn)
 		return;
 
 	while (yukino_window_iter(conn, wi, &win) == YUKINO_RESULT_OK) {
-		int32_t wx, wy;
-		uint32_t ww, wh;
+		int32_t wx, wy, wbx, wby;
+		uint32_t ww, wh, wbw, wbh;
 
 		if (yukino_window_position(conn, win, &wx, &wy, &ww, &wh) < 0)
 			continue; /* ??? */
@@ -213,10 +216,19 @@ static void windows_fill(yukino_connection_t *conn)
 			}
 		}
 
-		windows[windows_size].x = wx;
-		windows[windows_size].y = wy;
-		windows[windows_size].w = ww;
-		windows[windows_size].h = wh;
+		windows[windows_size].rect.x = wx;
+		windows[windows_size].rect.y = wy;
+		windows[windows_size].rect.w = ww;
+		windows[windows_size].rect.h = wh;
+		if (yukino_window_decorated_position(
+			    conn, win, &wbx, &wby, &wbw, &wbh)
+			>= 0) {
+			windows[windows_size].have_border = 1;
+			windows[windows_size].border.x = wbx;
+			windows[windows_size].border.y = wby;
+			windows[windows_size].border.w = wbw;
+			windows[windows_size].border.h = wbh;
+		}
 		windows[windows_size].win = win;
 
 		windows_size++;
@@ -239,16 +251,19 @@ static yukino_result_t windows_query_at_point(int32_t x, int32_t y, int32_t *px,
 		struct window *win = &windows[i];
 
 		/* check if our coordinates are inside the window */
-		if (!((x >= win->x) && (x <= (win->x + win->w)) && (y >= win->y)
-			    && (y <= (win->y + win->h))))
-			continue; /* ignore */
-
-		*px = win->x;
-		*py = win->y;
-		*pw = win->w;
-		*ph = win->h;
-
-		r = YUKINO_RESULT_OK;
+		if (yukino_rect_has_point(&win->rect, x, y)) {
+			*px = win->rect.x;
+			*py = win->rect.y;
+			*pw = win->rect.w;
+			*ph = win->rect.h;
+			r = YUKINO_RESULT_OK;
+		} else if (yukino_rect_has_point(&win->border, x, y)) {
+			*px = win->border.x;
+			*py = win->border.y;
+			*pw = win->border.w;
+			*ph = win->border.h;
+			r = YUKINO_RESULT_OK;
+		}
 	}
 
 	return r;

@@ -119,6 +119,14 @@ yukino_result_t yukino_window_position(yukino_connection_t *conn,
 		       : YUKINO_RESULT_UNSUPPORTED;
 }
 
+yukino_result_t yukino_window_decorated_position(yukino_connection_t *conn,
+	yukino_window_t win, int32_t *x, int32_t *y, uint32_t *w, uint32_t *h)
+{
+	return conn->window_decorated_position
+		       ? conn->window_decorated_position(conn, win, x, y, w, h)
+		       : YUKINO_RESULT_UNSUPPORTED;
+}
+
 yukino_result_t yukino_take(yukino_connection_t *conn, uint32_t x, uint32_t y,
 	uint32_t w, uint32_t h, yukino_take_pixel pixel_func, void *userdata)
 {
@@ -190,4 +198,11 @@ yukino_result_t yukino_query_window_at_point(
 		return rr;
 
 	return r;
+}
+
+yukino_result_t yukino_rect_has_point(
+	const yukino_rect_t *r, int32_t x, int32_t y)
+{
+	return ((x >= r->x) && (x <= (r->x + r->w)) && (y >= r->y)
+		&& (y <= (r->y + r->h)));
 }

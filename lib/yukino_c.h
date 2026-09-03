@@ -14,7 +14,7 @@
  *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #ifndef YUKINO_C_H_
 #define YUKINO_C_H_
@@ -24,26 +24,27 @@
 /* privates */
 struct yukino_connection {
 	yukino_result_t (*disconnect)(yukino_connection_t *conn);
-	yukino_result_t (*display_resolution)(yukino_connection_t *conn, uint32_t *w, uint32_t *h);
+	yukino_result_t (*display_resolution)(
+		yukino_connection_t *conn, uint32_t *w, uint32_t *h);
 
-	yukino_result_t (*window_iter_start)(
-			yukino_connection_t *conn,
-			const yukino_window_t *win,
-			yukino_window_iter_t **pwi);
-	yukino_result_t (*window_iter)(
-			yukino_connection_t *conn, yukino_window_iter_t *wi,
-			yukino_window_t *pw);
+	yukino_result_t (*window_iter_start)(yukino_connection_t *conn,
+		const yukino_window_t *win, yukino_window_iter_t **pwi);
+	yukino_result_t (*window_iter)(yukino_connection_t *conn,
+		yukino_window_iter_t *wi, yukino_window_t *pw);
 	yukino_result_t (*window_iter_end)(
-			yukino_connection_t *conn, yukino_window_iter_t *wi);
+		yukino_connection_t *conn, yukino_window_iter_t *wi);
 
 	yukino_result_t (*window_position)(yukino_connection_t *conn,
-			yukino_window_t win,
-			int32_t *x, int32_t *y,
-			uint32_t *w, uint32_t *h);
+		yukino_window_t win, int32_t *x, int32_t *y, uint32_t *w,
+		uint32_t *h);
 
-	yukino_result_t (*take)(yukino_connection_t *conn,
-			uint32_t x, uint32_t y, uint32_t w, uint32_t h,
-			yukino_take_pixel pixel_func, void *userdata);
+	yukino_result_t (*window_decorated_position)(yukino_connection_t *conn,
+		yukino_window_t win, int32_t *x, int32_t *y, uint32_t *w,
+		uint32_t *h);
+
+	yukino_result_t (*take)(yukino_connection_t *conn, uint32_t x,
+		uint32_t y, uint32_t w, uint32_t h,
+		yukino_take_pixel pixel_func, void *userdata);
 
 	yukino_result_t (*lock)(yukino_connection_t *conn);
 	yukino_result_t (*unlock)(yukino_connection_t *conn);
@@ -67,7 +68,8 @@ struct yukino_adler32 {
 };
 
 void yukino_adler32_init(struct yukino_adler32 *a32);
-void yukino_adler32(struct yukino_adler32 *a32, const unsigned char *msg, size_t sz);
+void yukino_adler32(
+	struct yukino_adler32 *a32, const unsigned char *msg, size_t sz);
 uint32_t yukino_adler32_get(struct yukino_adler32 *a32);
 
 #ifdef YUKINO_XCB

@@ -25,6 +25,7 @@
 
 enum {
 	ATOM_NET_CLIENT_LIST, /* actually _NET_CLIENT_LIST_STACKING */
+	ATOM_NET_FRAME_EXTENTS,
 
 	/* array bounds */
 	ATOM_MAX_,
@@ -36,6 +37,7 @@ static struct {
 } atom_names[ATOM_MAX_] = {
 #define NAME(x) {x, sizeof(x) - 1}
 	NAME("_NET_CLIENT_LIST_STACKING"),
+	NAME("_NET_FRAME_EXTENTS"),
 #undef NAME
 };
 
@@ -311,6 +313,47 @@ static yukino_result_t yukino_xcb_window_position(yukino_connection_t *conn,
 	return YUKINO_RESULT_OK;
 }
 
+#include <stdio.h>
+
+static yukino_result_t yukino_xcb_window_decorated_position(
+	yukino_connection_t *conn, yukino_window_t win, int32_t *x, int32_t *y,
+	uint32_t *w, uint32_t *h)
+{
+	xcb_get_property_cookie_t deccookie;
+	xcb_get_property_reply_t *decreply;
+	uint32_t *extents;
+	yukino_result_t r;
+
+	deccookie = xcb_get_property(conn->conn_data.conn, 0, win,
+		conn->conn_data.atoms[ATOM_NET_FRAME_EXTENTS], XCB_ATOM_ANY, 0L,
+		UINT_MAX);
+
+	if ((r = yukino_xcb_window_position(conn, win, x, y, w, h)) < 0)
+		return r;
+
+	decreply
+		= xcb_get_property_reply(conn->conn_data.conn, deccookie, NULL);
+	if (!decreply)
+		return YUKINO_RESULT_UNSUPPORTED;
+
+	if (xcb_get_property_value_length(decreply) < (4 * sizeof(uint32_t))) {
+		free(decreply);
+		return YUKINO_RESULT_UNSUPPORTED;
+	}
+
+	extents = xcb_get_property_value(decreply);
+
+	/* add it onto the position of the inner window */
+	*x -= extents[0];
+	*y -= extents[2];
+	*w += extents[0] + extents[1];
+	*h += extents[2] + extents[3];
+
+	free(decreply);
+
+	return YUKINO_RESULT_OK;
+}
+
 /* ------------------------------------------------------------------------ */
 
 static yukino_result_t yukino_xcb_lock(yukino_connection_t *conn)
@@ -328,9 +371,9 @@ static yukino_result_t yukino_xcb_unlock(yukino_connection_t *conn)
 
 /* ------------------------------------------------------------------------ */
 
-static yukino_result_t yukino_xcb_take(yukino_connection_t *conn, uint32_t x,
-	uint32_t y, uint32_t w, uint32_t h, yukino_take_pixel pixel_func,
-	void *userdata)
+static yukino_result_t yukino_xcb_take_window(yukino_connection_t *conn,
+	yukino_window_t win, uint32_t x, uint32_t y, uint32_t w, uint32_t h,
+	yukino_take_pixel pixel_func, void *userdata)
 {
 	xcb_image_t *img;
 
@@ -367,6 +410,15 @@ static yukino_result_t yukino_xcb_take(yukino_connection_t *conn, uint32_t x,
 
 	xcb_image_destroy(img);
 	return YUKINO_RESULT_OK;
+}
+
+static yukino_result_t yukino_xcb_take(yukino_connection_t *conn, uint32_t x,
+	uint32_t y, uint32_t w, uint32_t h, yukino_take_pixel pixel_func,
+	void *userdata)
+{
+	return yukino_xcb_take_window(conn,
+		conn->conn_data.default_display_screen->root, x, y, w, h,
+		pixel_func, userdata);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -429,6 +481,7 @@ yukino_result_t yukino_xcb_connect(yukino_connection_t **pconn)
 	conn->window_iter_end = yukino_xcb_window_iter_end;
 
 	conn->window_position = yukino_xcb_window_position;
+	conn->window_decorated_position = yukino_xcb_window_decorated_position;
 
 	conn->lock = yukino_xcb_lock;
 	conn->unlock = yukino_xcb_unlock;
