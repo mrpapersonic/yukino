@@ -1,0 +1,57 @@
+---
+Language: Cpp
+#   don't see this documented anywhere nor do I think it matters.
+#   C grammar hasn't changed much since C99.
+#Standard: c99
+BasedOnStyle: LLVM
+UseTab: ForContinuationAndIndentation
+PointerAlignment: Right
+ColumnLimit: 80
+IndentWidth: 8
+TabWidth: 8
+PPIndentWidth: 1
+
+IndentCaseLabels: false
+IndentAccessModifiers: false
+IndentPPDirectives: AfterHash
+
+BreakBeforeBraces: WebKit
+BreakStringLiterals: true
+
+AlwaysBreakTemplateDeclarations: true
+
+SpaceAfterTemplateKeyword: false
+
+AlignAfterOpenBracket: false
+ContinuationIndentWidth: 8
+
+AlignArrayOfStructures: Left
+AlignEscapedNewlines: DontAlign
+AlignConsecutiveMacros: true
+
+AllowShortIfStatementsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Empty
+AllowShortEnumsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: InlineOnly
+AllowShortCaseLabelsOnASingleLine: false
+
+QualifierAlignment: Left
+
+SpacesBeforeTrailingComments: 1
+# SpacesInBlockComments: Leave
+
+#  don't touch this
+SpacesInLineCommentPrefix:
+  Minimum: 0
+  Maximum: -1
+
+BreakBeforeBinaryOperators: All
+
+InsertNewlineAtEOF: true
+
+# I know better than you do
+AlignTrailingComments: Leave
+
+IncludeCategories:
+  - Regex: '^"yukino\.h"$'
+    Priority: -1

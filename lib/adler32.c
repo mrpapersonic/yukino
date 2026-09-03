@@ -14,7 +14,7 @@
  *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "yukino_c.h"
 
@@ -41,7 +41,8 @@ void yukino_adler32_init(struct yukino_adler32 *a32)
 	a32->n = A32N_MAX;
 }
 
-void yukino_adler32(struct yukino_adler32 *a32, const unsigned char *msg, size_t sz)
+void yukino_adler32(
+	struct yukino_adler32 *a32, const unsigned char *msg, size_t sz)
 {
 	while (sz > 0) {
 		/* DO IT */
@@ -57,22 +58,38 @@ void yukino_adler32(struct yukino_adler32 *a32, const unsigned char *msg, size_t
 		a32->n -= tsz;
 
 		while (tsz >= 16) {
-			a32->a += msg[0]; a32->b += a32->a;
-			a32->a += msg[1]; a32->b += a32->a;
-			a32->a += msg[2]; a32->b += a32->a;
-			a32->a += msg[3]; a32->b += a32->a;
-			a32->a += msg[4]; a32->b += a32->a;
-			a32->a += msg[5]; a32->b += a32->a;
-			a32->a += msg[6]; a32->b += a32->a;
-			a32->a += msg[7]; a32->b += a32->a;
-			a32->a += msg[8]; a32->b += a32->a;
-			a32->a += msg[9]; a32->b += a32->a;
-			a32->a += msg[10]; a32->b += a32->a;
-			a32->a += msg[11]; a32->b += a32->a;
-			a32->a += msg[12]; a32->b += a32->a;
-			a32->a += msg[13]; a32->b += a32->a;
-			a32->a += msg[14]; a32->b += a32->a;
-			a32->a += msg[15]; a32->b += a32->a;
+			a32->a += msg[0];
+			a32->b += a32->a;
+			a32->a += msg[1];
+			a32->b += a32->a;
+			a32->a += msg[2];
+			a32->b += a32->a;
+			a32->a += msg[3];
+			a32->b += a32->a;
+			a32->a += msg[4];
+			a32->b += a32->a;
+			a32->a += msg[5];
+			a32->b += a32->a;
+			a32->a += msg[6];
+			a32->b += a32->a;
+			a32->a += msg[7];
+			a32->b += a32->a;
+			a32->a += msg[8];
+			a32->b += a32->a;
+			a32->a += msg[9];
+			a32->b += a32->a;
+			a32->a += msg[10];
+			a32->b += a32->a;
+			a32->a += msg[11];
+			a32->b += a32->a;
+			a32->a += msg[12];
+			a32->b += a32->a;
+			a32->a += msg[13];
+			a32->b += a32->a;
+			a32->a += msg[14];
+			a32->b += a32->a;
+			a32->a += msg[15];
+			a32->b += a32->a;
 			msg += 16;
 			tsz -= 16;
 		}

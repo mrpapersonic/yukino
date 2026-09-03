@@ -31,8 +31,7 @@ struct sdl_take_pixel {
 	int x, y;
 };
 
-static yukino_result_t sdl_take_pixel(void *userdata,
-	unsigned char rgb[3])
+static yukino_result_t sdl_take_pixel(void *userdata, unsigned char rgb[3])
 {
 	struct sdl_take_pixel *sur = userdata;
 	uint32_t *px;
@@ -42,16 +41,18 @@ static yukino_result_t sdl_take_pixel(void *userdata,
 		sur->x = 0;
 	}
 
-	px = (uint32_t *)((char *)sur->sur->pixels + (sur->sur->pitch * sur->y)) + sur->x;
+	px = (uint32_t *)((char *)sur->sur->pixels + (sur->sur->pitch * sur->y))
+	     + sur->x;
 
-	*px = 0xFF000000 | ((uint32_t)rgb[2] << 16) | ((uint32_t)rgb[1] << 8) | rgb[0];
+	*px = 0xFF000000 | ((uint32_t)rgb[2] << 16) | ((uint32_t)rgb[1] << 8)
+	      | rgb[0];
 
 	sur->x++;
 	return YUKINO_RESULT_OK;
 }
 
-static SDL_Surface *sdl_yukino(yukino_connection_t *conn,
-	uint32_t x, uint32_t y, uint32_t w, uint32_t h)
+static SDL_Surface *sdl_yukino(yukino_connection_t *conn, uint32_t x,
+	uint32_t y, uint32_t w, uint32_t h)
 {
 	struct sdl_take_pixel s;
 
@@ -123,8 +124,8 @@ static yukino_result_t stdio_write_cb(void *opaque, const void *data, size_t sz)
 	return YUKINO_RESULT_OK;
 }
 
-static void sdl_write_surface_to_png(const char *f, SDL_Surface *sur,
-	SDL_FRect *rect)
+static void sdl_write_surface_to_png(
+	const char *f, SDL_Surface *sur, SDL_FRect *rect)
 {
 	FILE *fp;
 
@@ -132,7 +133,8 @@ static void sdl_write_surface_to_png(const char *f, SDL_Surface *sur,
 	if (!fp)
 		return; /* oops */
 
-	yukino_write_png(rect->x, rect->y, rect->w, rect->h, stdio_write_cb, fp, sdl_take_cb, sur);
+	yukino_write_png(rect->x, rect->y, rect->w, rect->h, stdio_write_cb, fp,
+		sdl_take_cb, sur);
 
 	fclose(fp);
 }
@@ -191,15 +193,18 @@ static void windows_fill(yukino_connection_t *conn)
 		int32_t wx, wy;
 		uint32_t ww, wh;
 
-		if ((rr = yukino_window_position(conn, win, &wx, &wy, &ww, &wh)) < 0)
+		if ((rr = yukino_window_position(conn, win, &wx, &wy, &ww, &wh))
+			< 0)
 			continue; /* ??? */
 
 		/* allocate more space? */
 		if (windows_size >= windows_alloc) {
 			void *old = windows;
 
-			windows_alloc = (windows_alloc) ? (windows_alloc * 2) : 16;
-			windows = realloc(windows, windows_alloc * sizeof(*windows));
+			windows_alloc
+				= (windows_alloc) ? (windows_alloc * 2) : 16;
+			windows = realloc(
+				windows, windows_alloc * sizeof(*windows));
 
 			if (!windows) {
 				free(old);
@@ -221,8 +226,8 @@ static void windows_fill(yukino_connection_t *conn)
 	yukino_window_iter_end(conn, wi);
 }
 
-static yukino_result_t windows_query_at_point(int32_t x, int32_t y,
-	int32_t *px, int32_t *py, uint32_t *pw, uint32_t *ph)
+static yukino_result_t windows_query_at_point(int32_t x, int32_t y, int32_t *px,
+	int32_t *py, uint32_t *pw, uint32_t *ph)
 {
 	/* there may be no window under the pointer -- in that case return
 	 * YUKINO_RESULT_NONE */
@@ -235,7 +240,8 @@ static yukino_result_t windows_query_at_point(int32_t x, int32_t y,
 		struct window *win = &windows[i];
 
 		/* check if our coordinates are inside the window */
-		if (!((x >= win->x) && (x <= (win->x + win->w)) && (y >= win->y) && (y <= (win->y + win->h))))
+		if (!((x >= win->x) && (x <= (win->x + win->w)) && (y >= win->y)
+			    && (y <= (win->y + win->h))))
 			continue; /* ignore */
 
 		*px = win->x;
@@ -262,7 +268,11 @@ int main(int argc, char *argv[])
 	SDL_FRect sel;
 	yukino_connection_t *conn;
 	/* Mouse down, drag */
-	enum { POINTS_DOWN, POINTS_DRAG, POINTS_MAX_ };
+	enum {
+		POINTS_DOWN,
+		POINTS_DRAG,
+		POINTS_MAX_
+	};
 	SDL_FPoint points[POINTS_MAX_];
 	int down = 0, drag = 0;
 
@@ -277,7 +287,8 @@ int main(int argc, char *argv[])
 
 	yukino_unlock(conn);
 
-	SDL_CreateWindowAndRenderer("yukino", sur->w, sur->h, SDL_WINDOW_FULLSCREEN, &win, &ren);
+	SDL_CreateWindowAndRenderer(
+		"yukino", sur->w, sur->h, SDL_WINDOW_FULLSCREEN, &win, &ren);
 
 	tex = SDL_CreateTextureFromSurface(ren, sur);
 
@@ -294,8 +305,10 @@ int main(int argc, char *argv[])
 		/* Adjust selection */
 		if (drag) {
 			/* Lol wow SDL has a function for this */
-			SDL_GetRectEnclosingPointsFloat(points, POINTS_MAX_, NULL, &sel);
-		} else if (windows_query_at_point(mx, my, &wx, &wy, &ww, &wh) == YUKINO_RESULT_OK) {
+			SDL_GetRectEnclosingPointsFloat(
+				points, POINTS_MAX_, NULL, &sel);
+		} else if (windows_query_at_point(mx, my, &wx, &wy, &ww, &wh)
+			   == YUKINO_RESULT_OK) {
 			sel.x = wx;
 			sel.y = wy;
 			sel.w = ww;
@@ -311,8 +324,9 @@ int main(int argc, char *argv[])
 		/* Blit. */
 		SDL_RenderClear(ren);
 
-		/* Apparently not supported everywhere... we'd need to store a separate texture
-		 * thats at half visible if we want to support those platforms */
+		/* Apparently not supported everywhere... we'd need to store a
+		 * separate texture thats at half visible if we want to support
+		 * those platforms */
 		SDL_SetTextureColorMod(tex, 127, 127, 127);
 		SDL_RenderTexture(ren, tex, NULL, NULL);
 
@@ -342,7 +356,7 @@ int main(int argc, char *argv[])
 		}
 	} while (SDL_WaitEvent(&ev));
 
-out: ;
+out:;
 	/* We're done here, and hopefully we have a selection (right?)
 	 * So, take what we have, and shove it into the png writer */
 
@@ -362,15 +376,17 @@ out: ;
 
 	static const SDL_DialogFileFilter filters[] = {
 		{"PNG (Portable Network Graphics)", "png"},
-		{"All files", "*"}
-	};
+                {"All files",                       "*"  }
+        };
 
-	SDL_ShowSaveFileDialog(dialog_cb, (void *)&c, NULL, filters, SDL_arraysize(filters), NULL);
+	SDL_ShowSaveFileDialog(dialog_cb, (void *)&c, NULL, filters,
+		SDL_arraysize(filters), NULL);
 
 	/* Busy wait for the file dialog to do its thing */
 	while (!c.done) {
 		/* Handle events here */
-		while (SDL_PollEvent(&ev));
+		while (SDL_PollEvent(&ev))
+			;
 
 		/* Then sleep... */
 		SDL_Delay(10);

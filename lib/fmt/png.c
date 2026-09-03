@@ -14,7 +14,7 @@
  *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "yukino.h"
 #include "yukino_c.h"
@@ -50,7 +50,8 @@ static uint32_t png_bswap32(uint32_t x)
 {
 	const unsigned char *px = (const unsigned char *)&x;
 
-	return (px[3]) | ((uint32_t)px[2] << 8) | ((uint32_t)px[1] << 16) | ((uint32_t)px[0] << 24);
+	return (px[3]) | ((uint32_t)px[2] << 8) | ((uint32_t)px[1] << 16)
+	       | ((uint32_t)px[0] << 24);
 }
 
 /* big write function */
@@ -91,7 +92,8 @@ static yukino_result_t png_write_u32(struct png *png, uint32_t u)
 	return YUKINO_RESULT_OK;
 }
 
-static yukino_result_t png_deflate_header_impl(struct png *png, unsigned char b, uint16_t sz)
+static yukino_result_t png_deflate_header_impl(
+	struct png *png, unsigned char b, uint16_t sz)
 {
 	yukino_result_t r;
 
@@ -111,12 +113,12 @@ static yukino_result_t png_deflate_header_impl(struct png *png, unsigned char b,
 
 static yukino_result_t png_deflate_header(struct png *png, size_t sz)
 {
-	return (sz > 65535)
-		? png_deflate_header_impl(png, 0, 65535)
-		: png_deflate_header_impl(png, 1, sz);
+	return (sz > 65535) ? png_deflate_header_impl(png, 0, 65535)
+			    : png_deflate_header_impl(png, 1, sz);
 }
 
-static yukino_result_t png_deflate_write(struct png *png, const void *b_, size_t sz)
+static yukino_result_t png_deflate_write(
+	struct png *png, const void *b_, size_t sz)
 {
 	yukino_result_t r;
 	const unsigned char *b = b_;
@@ -167,7 +169,8 @@ static yukino_result_t png_zlib_footer(struct png *png)
 	return png_write_u32(png, a32);
 }
 
-static yukino_result_t png_chunk_head(struct png *png, const char id[4], uint32_t sz)
+static yukino_result_t png_chunk_head(
+	struct png *png, const char id[4], uint32_t sz)
 {
 	yukino_result_t r;
 
@@ -209,10 +212,9 @@ static yukino_result_t png_cb(void *userdata, unsigned char rgb[3])
 }
 
 /* based on libpng docs */
-yukino_result_t yukino_write_png(
-		uint32_t x, uint32_t y, uint32_t w, uint32_t h,
-		yukino_write_cb write_cb, void *userdata,
-		yukino_take_t take_cb, void *take_data)
+yukino_result_t yukino_write_png(uint32_t x, uint32_t y, uint32_t w, uint32_t h,
+	yukino_write_cb write_cb, void *userdata, yukino_take_t take_cb,
+	void *take_data)
 {
 	static const unsigned char magic[] = {137, 80, 78, 71, 13, 10, 26, 10};
 	yukino_result_t r;

@@ -14,7 +14,7 @@
  *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "yukino_c.h"
 
@@ -25,19 +25,21 @@
 
 #define CRC32_MASK(crc) (-((crc) & 1))
 
-/* Does one iteration of the 8-time loop to generate one byte of the CRC table. */
-#define CRC32_PRECALC_EX(crc) (((crc) >> 1) ^ ((CRC32_POLYNOMIAL) & CRC32_MASK(crc)))
+/* Does one iteration of the 8-time loop to generate one byte of the CRC table.
+ */
+#define CRC32_PRECALC_EX(crc) \
+	(((crc) >> 1) ^ ((CRC32_POLYNOMIAL) & CRC32_MASK(crc)))
 
 /* Does all eight iterations of the loop to generate one byte. */
 #define CRC32_PRECALC_E(byte) \
-	(CRC32_PRECALC_EX(CRC32_PRECALC_EX(CRC32_PRECALC_EX(CRC32_PRECALC_EX(CRC32_PRECALC_EX(CRC32_PRECALC_EX(CRC32_PRECALC_EX(CRC32_PRECALC_EX(byte)))))))))
+	(CRC32_PRECALC_EX(CRC32_PRECALC_EX(CRC32_PRECALC_EX( \
+		CRC32_PRECALC_EX(CRC32_PRECALC_EX(CRC32_PRECALC_EX( \
+			CRC32_PRECALC_EX(CRC32_PRECALC_EX(byte)))))))))
 
 /* Simple wrapper of CRC32_PRECALC_E that converts everything to uint32_t */
-#define CRC32_PRECALC(byte) \
-	CRC32_PRECALC_E((uint32_t)(byte))
+#define CRC32_PRECALC(byte) CRC32_PRECALC_E((uint32_t)(byte))
 
-#define CRC32_PRECALC_0(byte) \
-	CRC32_PRECALC(byte), CRC32_PRECALC((byte) | 0x01)
+#define CRC32_PRECALC_0(byte) CRC32_PRECALC(byte), CRC32_PRECALC((byte) | 0x01)
 
 #define CRC32_PRECALC_1(byte) \
 	CRC32_PRECALC_0(byte), CRC32_PRECALC_0((byte) | UINT32_C(0x02))
@@ -60,9 +62,7 @@
 #define CRC32_PRECALC_7(byte) \
 	CRC32_PRECALC_6(byte), CRC32_PRECALC_6((byte) | UINT32_C(0x80))
 
-static const uint32_t crc32_tab[256] = {
-	CRC32_PRECALC_7(0)
-};
+static const uint32_t crc32_tab[256] = {CRC32_PRECALC_7(0)};
 
 #undef CRC32_MASK
 #undef CRC32_PRECALC_EX
@@ -103,7 +103,8 @@ uint32_t yukino_crc32(uint32_t crc, const unsigned char *message, size_t sz)
 		sz -= msz;
 
 		for (; sz >= 4; sz -= 4, message += 4) {
-			crc ^= *(__attribute__((__may_alias__)) uint32_t *)message;
+			crc ^= *(__attribute__((__may_alias__))
+				uint32_t *)message;
 
 			crc = (crc >> 8) ^ crc32_tab[crc & 0xFF];
 			crc = (crc >> 8) ^ crc32_tab[crc & 0xFF];
