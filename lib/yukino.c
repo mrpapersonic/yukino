@@ -136,7 +136,7 @@ yukino_result_t yukino_lock(yukino_connection_t *conn)
 {
 	yukino_result_t r;
 
-	if (conn->grab_ref)
+	if (conn->lock_ref)
 		return YUKINO_RESULT_OK;
 
 	r = conn->lock ? conn->lock(conn) : YUKINO_RESULT_UNSUPPORTED;
@@ -144,7 +144,7 @@ yukino_result_t yukino_lock(yukino_connection_t *conn)
 		return r;
 
 	/* only increase refcount if it succeeded */
-	conn->grab_ref++;
+	conn->lock_ref++;
 
 	return YUKINO_RESULT_OK;
 }
@@ -154,14 +154,14 @@ yukino_result_t yukino_unlock(yukino_connection_t *conn)
 	yukino_result_t r;
 
 	/* do nothing ? */
-	if (!conn->grab_ref)
+	if (!conn->lock_ref)
 		return YUKINO_RESULT_OK;
 
 	r = conn->unlock ? conn->unlock(conn) : YUKINO_RESULT_UNSUPPORTED;
 	if (r < 0)
 		return r;
 
-	conn->grab_ref--;
+	conn->lock_ref--;
 	return r;
 }
 
