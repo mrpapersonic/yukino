@@ -391,13 +391,13 @@ static yukino_result_t yukino_xcb_window_decorated_position(
 
 static yukino_result_t yukino_xcb_lock(yukino_connection_t *conn)
 {
-	//xcb_grab_server(conn->conn_data.conn);
+	xcb_grab_server(conn->conn_data.conn);
 	return YUKINO_RESULT_OK;
 }
 
 static yukino_result_t yukino_xcb_unlock(yukino_connection_t *conn)
 {
-	//xcb_ungrab_server(conn->conn_data.conn);
+	xcb_ungrab_server(conn->conn_data.conn);
 	xcb_flush(conn->conn_data.conn);
 	return YUKINO_RESULT_OK;
 }
