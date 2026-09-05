@@ -23,7 +23,7 @@
 #include <xcb/xcb.h>
 
 enum {
-	ATOM_NET_CLIENT_LIST, /* actually _NET_CLIENT_LIST_STACKING */
+	ATOM_NET_CLIENT_LIST_STACKING,
 	ATOM_NET_FRAME_EXTENTS,
 
 	/* array bounds */
@@ -203,13 +203,13 @@ static yukino_result_t yukino_xcb_window_iter_start(yukino_connection_t *conn,
 
 	/* XXX: wouldn't it be better to just list toplevels when `win` is NULL
 	 */
-	if (!win && conn->conn_data.atoms[ATOM_NET_CLIENT_LIST]) {
+	if (!win && conn->conn_data.atoms[ATOM_NET_CLIENT_LIST_STACKING]) {
 		/* Try _NET_CLIENT_LIST */
 		wi->type = WITER_NET_CLIENT_LIST;
 
 		wi->u.nlist.cookie = xcb_get_property(conn->conn_data.conn, 0,
 			conn->conn_data.default_display_screen->root,
-			conn->conn_data.atoms[ATOM_NET_CLIENT_LIST],
+			conn->conn_data.atoms[ATOM_NET_CLIENT_LIST_STACKING],
 			XCB_ATOM_ANY, 0L, UINT_MAX);
 	} else {
 		query_tree(conn, wi, win);
