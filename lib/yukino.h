@@ -86,7 +86,8 @@ YUKINO_EXTERN yukino_result_t yukino_display_resolution(
 /* iterate through windows */
 
 /* On X11, this loops from the backmost window to the frontmost window. */
-YUKINO_EXTERN yukino_result_t yukino_window_iter_start(yukino_connection_t *conn,
+YUKINO_EXTERN yukino_result_t yukino_window_iter_start(
+	yukino_connection_t *conn,
 	const yukino_window_t *win, /* NULL == operate on the root window */
 	yukino_window_iter_t **pwi);
 YUKINO_EXTERN yukino_result_t yukino_window_iter(yukino_connection_t *conn,
@@ -98,11 +99,11 @@ YUKINO_EXTERN yukino_result_t yukino_window_iter_end(
 /* window utils */
 
 /* XXX have a yukino_rect instead? */
-YUKINO_EXTERN yukino_result_t yukino_window_position(yukino_connection_t *conn,
-	yukino_window_t win, yukino_rect_t *pr);
+YUKINO_EXTERN yukino_result_t yukino_window_position(
+	yukino_connection_t *conn, yukino_window_t win, yukino_rect_t *pr);
 
-YUKINO_EXTERN yukino_result_t yukino_window_decorated_position(yukino_connection_t *conn,
-	yukino_window_t win, yukino_rect_t *pr);
+YUKINO_EXTERN yukino_result_t yukino_window_decorated_position(
+	yukino_connection_t *conn, yukino_window_t win, yukino_rect_t *pr);
 
 /* ------------------------------------------------------------------------ */
 /* display lock/unlock. this could come in handy if say, we wanted to take
@@ -128,13 +129,15 @@ typedef yukino_result_t (*yukino_write_cb)(
 	void *userdata, const void *bytes, size_t size);
 
 /* image iteration function */
-typedef yukino_result_t (*yukino_image_proc_t)(void *conn, uint32_t x, uint32_t y,
-	uint32_t w, uint32_t h, yukino_pixel_proc_t pixel_func, void *userdata);
+typedef yukino_result_t (*yukino_image_proc_t)(void *conn, uint32_t x,
+	uint32_t y, uint32_t w, uint32_t h, yukino_pixel_proc_t pixel_func,
+	void *userdata);
 
 /* writes an image in the given format */
 #define YUKINO_WRITE(N) \
-	YUKINO_EXTERN yukino_result_t yukino_write_##N(uint32_t x, uint32_t y, uint32_t w, uint32_t h, \
-		yukino_write_cb write_cb, void *write_data, yukino_image_proc_t take_cb, \
+	YUKINO_EXTERN yukino_result_t yukino_write_##N(uint32_t x, uint32_t y, \
+		uint32_t w, uint32_t h, yukino_write_cb write_cb, \
+		void *write_data, yukino_image_proc_t take_cb, \
 		void *take_data);
 
 YUKINO_WRITE(bmp)
@@ -146,12 +149,14 @@ YUKINO_WRITE(ppm)
 /* ------------------------------------------------------------------------ */
 /* take a screenshot */
 
-YUKINO_EXTERN yukino_result_t yukino_screenshot(yukino_connection_t *conn, uint32_t x, uint32_t y,
-	uint32_t w, uint32_t h, yukino_pixel_proc_t pixel_func, void *userdata);
+YUKINO_EXTERN yukino_result_t yukino_screenshot(yukino_connection_t *conn,
+	uint32_t x, uint32_t y, uint32_t w, uint32_t h,
+	yukino_pixel_proc_t pixel_func, void *userdata);
 
 #define YUKINO_SCREENSHOT(N) \
-	YUKINO_EXTERN yukino_result_t yukino_screenshot_##N(yukino_connection_t *conn, uint32_t x, uint32_t y, \
-		uint32_t w, uint32_t h, yukino_write_cb write_cb, void *userdata);
+	YUKINO_EXTERN yukino_result_t yukino_screenshot_##N( \
+		yukino_connection_t *conn, uint32_t x, uint32_t y, uint32_t w, \
+		uint32_t h, yukino_write_cb write_cb, void *userdata);
 
 YUKINO_SCREENSHOT(ppm)
 YUKINO_SCREENSHOT(png)

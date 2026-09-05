@@ -23,7 +23,11 @@
 # include <zlib.h>
 #endif
 
-#define R_ASSERT(x) do { if ((r = (x)) < 0) return r; } while (0)
+#define R_ASSERT(x) \
+	do { \
+		if ((r = (x)) < 0) \
+			return r; \
+	} while (0)
 
 struct png {
 	yukino_write_cb write_cb;

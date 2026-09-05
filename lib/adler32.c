@@ -23,7 +23,7 @@
    number of additions we have that can fit inside the integer. That number
    can be found as such:
 
-           f(n) = 255n((n+1)/2)+(n+1)(BASE-1)
+	   f(n) = 255n((n+1)/2)+(n+1)(BASE-1)
 
    Finding out where it overflows is essentially a case of inversing this
    function and plugging in ((2^(BITS))-1). The results of this operation

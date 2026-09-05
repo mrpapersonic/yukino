@@ -288,8 +288,8 @@ static yukino_result_t yukino_xcb_window_iter_end(
 /* ------------------------------------------------------------------------ */
 /* XXX: Need a "batch" API of sorts */
 
-static yukino_result_t yukino_xcb_window_position(yukino_connection_t *conn,
-	yukino_window_t win, yukino_rect_t *pr)
+static yukino_result_t yukino_xcb_window_position(
+	yukino_connection_t *conn, yukino_window_t win, yukino_rect_t *pr)
 {
 	xcb_get_geometry_cookie_t cookie;
 	xcb_get_geometry_reply_t *reply;
@@ -428,8 +428,10 @@ static yukino_result_t yukino_xcb_take_window(yukino_connection_t *conn,
 		for (x = 0; x < w; x++) {
 			yukino_result_t r;
 			uint32_t pxl;
-			unsigned char rgb[4]; /* used as a temp buf, hence 4 bytes */
-			uint8_t *tdata = data + ((x * fmt->bits_per_pixel) >> 3);
+			unsigned char
+				rgb[4]; /* used as a temp buf, hence 4 bytes */
+			uint8_t *tdata
+				= data + ((x * fmt->bits_per_pixel) >> 3);
 
 			/* clang-format off */
 			switch (bpp) {

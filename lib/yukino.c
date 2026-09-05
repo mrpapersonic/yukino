@@ -40,8 +40,10 @@ yukino_result_t yukino_display_resolution(
 	if (!conn)
 		return YUKINO_RESULT_INVALID_PARAM;
 
-	if (!pw) pw = &w;
-	if (!ph) ph = &h;
+	if (!pw)
+		pw = &w;
+	if (!ph)
+		ph = &h;
 
 	return conn->display_resolution ? conn->display_resolution(conn, pw, ph)
 					: YUKINO_RESULT_UNSUPPORTED;
@@ -86,41 +88,42 @@ yukino_result_t yukino_window_iter_end(
 				     : YUKINO_RESULT_UNSUPPORTED;
 }
 
-yukino_result_t yukino_window_position(yukino_connection_t *conn,
-	yukino_window_t win, yukino_rect_t *pr)
+yukino_result_t yukino_window_position(
+	yukino_connection_t *conn, yukino_window_t win, yukino_rect_t *pr)
 {
-	return conn->window_position
-		       ? conn->window_position(conn, win, pr)
-		       : YUKINO_RESULT_UNSUPPORTED;
+	return conn->window_position ? conn->window_position(conn, win, pr)
+				     : YUKINO_RESULT_UNSUPPORTED;
 }
 
-yukino_result_t yukino_window_decorated_position(yukino_connection_t *conn,
-	yukino_window_t win, yukino_rect_t *pr)
+yukino_result_t yukino_window_decorated_position(
+	yukino_connection_t *conn, yukino_window_t win, yukino_rect_t *pr)
 {
 	return conn->window_decorated_position
 		       ? conn->window_decorated_position(conn, win, pr)
 		       : YUKINO_RESULT_UNSUPPORTED;
 }
 
-yukino_result_t yukino_screenshot(yukino_connection_t *conn, uint32_t x, uint32_t y,
-	uint32_t w, uint32_t h, yukino_pixel_proc_t pixel_func, void *userdata)
+yukino_result_t yukino_screenshot(yukino_connection_t *conn, uint32_t x,
+	uint32_t y, uint32_t w, uint32_t h, yukino_pixel_proc_t pixel_func,
+	void *userdata)
 {
 	return conn->take ? conn->take(conn, x, y, w, h, pixel_func, userdata)
 			  : YUKINO_RESULT_UNSUPPORTED;
 }
 
-YUKINO_INLINE yukino_result_t screenshot_cb(void *conn, uint32_t x, uint32_t y, uint32_t w,
-	uint32_t h, yukino_pixel_proc_t pixel_func, void *userdata)
+YUKINO_INLINE yukino_result_t screenshot_cb(void *conn, uint32_t x, uint32_t y,
+	uint32_t w, uint32_t h, yukino_pixel_proc_t pixel_func, void *userdata)
 {
 	return yukino_screenshot(conn, x, y, w, h, pixel_func, userdata);
 }
 
 #define SCREENSHOT(N) \
-	yukino_result_t yukino_screenshot_##N(yukino_connection_t *conn, uint32_t x, \
-		uint32_t y, uint32_t w, uint32_t h, yukino_write_cb write_cb, \
-		void *userdata) \
+	yukino_result_t yukino_screenshot_##N(yukino_connection_t *conn, \
+		uint32_t x, uint32_t y, uint32_t w, uint32_t h, \
+		yukino_write_cb write_cb, void *userdata) \
 	{ \
-		return yukino_write_##N(x, y, w, h, write_cb, userdata, screenshot_cb, conn); \
+		return yukino_write_##N( \
+			x, y, w, h, write_cb, userdata, screenshot_cb, conn); \
 	}
 
 SCREENSHOT(ppm)

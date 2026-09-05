@@ -61,7 +61,9 @@ yukino_result_t yukino_write_ppm(uint32_t x, uint32_t y, uint32_t w, uint32_t h,
 	struct cbuserdata ud = {write_cb, userdata};
 	yukino_result_t r;
 
-#define R_ASSERT(x) if ((r = (x)) < 0) return r
+#define R_ASSERT(x) \
+	if ((r = (x)) < 0) \
+	return r
 	R_ASSERT(write_cb(userdata, "P6\n", 3));
 	R_ASSERT(write_u32str(write_cb, userdata, w));
 	R_ASSERT(write_cb(userdata, " ", 1));

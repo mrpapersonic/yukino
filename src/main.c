@@ -270,7 +270,8 @@ static void fixup(SDL_FRect *rect, SDL_Surface *sur)
 }
 
 /* for scaling points into pixels */
-static void points_to_pixels(yukino_rect_t *out, const SDL_FRect *in, float density)
+static void points_to_pixels(
+	yukino_rect_t *out, const SDL_FRect *in, float density)
 {
 	out->x = SDL_lroundf(in->x * density);
 	out->y = SDL_lroundf(in->y * density);
@@ -278,7 +279,8 @@ static void points_to_pixels(yukino_rect_t *out, const SDL_FRect *in, float dens
 	out->h = SDL_lroundf(in->h * density);
 }
 
-static void pixels_to_points(SDL_FRect *out, const yukino_rect_t *in, float density)
+static void pixels_to_points(
+	SDL_FRect *out, const yukino_rect_t *in, float density)
 {
 	out->x = in->x / density;
 	out->y = in->y / density;
@@ -353,25 +355,36 @@ int main(int argc, char *argv[])
 	{
 		SDL_PropertiesID props = SDL_CreateProperties();
 
-		SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_X_NUMBER, 0);
-		SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_Y_NUMBER, 0);
-		SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, sur->h);
-		SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, sur->w);
-		SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_ALWAYS_ON_TOP_BOOLEAN, true);
-		SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_BORDERLESS_BOOLEAN, true);
-		SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_HIDDEN_BOOLEAN, true);
-		SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_HIGH_PIXEL_DENSITY_BOOLEAN, true);
+		SDL_SetNumberProperty(
+			props, SDL_PROP_WINDOW_CREATE_X_NUMBER, 0);
+		SDL_SetNumberProperty(
+			props, SDL_PROP_WINDOW_CREATE_Y_NUMBER, 0);
+		SDL_SetNumberProperty(
+			props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, sur->h);
+		SDL_SetNumberProperty(
+			props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, sur->w);
+		SDL_SetBooleanProperty(props,
+			SDL_PROP_WINDOW_CREATE_ALWAYS_ON_TOP_BOOLEAN, true);
+		SDL_SetBooleanProperty(
+			props, SDL_PROP_WINDOW_CREATE_BORDERLESS_BOOLEAN, true);
+		SDL_SetBooleanProperty(
+			props, SDL_PROP_WINDOW_CREATE_HIDDEN_BOOLEAN, true);
+		SDL_SetBooleanProperty(props,
+			SDL_PROP_WINDOW_CREATE_HIGH_PIXEL_DENSITY_BOOLEAN,
+			true);
 
 		win = SDL_CreateWindowWithProperties(props);
 
 		SDL_DestroyProperties(props);
 	}
 
-	if (!win) goto end;
+	if (!win)
+		goto end;
 
 	ren = SDL_CreateRenderer(win, NULL);
 
-	if (!ren) goto end;
+	if (!ren)
+		goto end;
 
 	density = SDL_GetWindowPixelDensity(win);
 
@@ -395,7 +408,8 @@ int main(int argc, char *argv[])
 			/* Lol wow SDL has a function for this */
 			SDL_GetRectEnclosingPointsFloat(
 				points, POINTS_MAX_, NULL, &sel);
-		} else if (windows_query_at_point(mx, my, &w) == YUKINO_RESULT_OK) {
+		} else if (windows_query_at_point(mx, my, &w)
+			   == YUKINO_RESULT_OK) {
 			pixels_to_points(&sel, &w, density);
 		} else {
 			/* Otherwise the "selection" is the window beneath the
@@ -423,9 +437,9 @@ int main(int argc, char *argv[])
 
 		SDL_RenderPresent(ren);
 
-		/* When we create our window, it's hidden, to avoid showing a huge
-		 * blank window on startup. Now we want to show the window since
-		 * it's done rendering. */
+		/* When we create our window, it's hidden, to avoid showing a
+		 * huge blank window on startup. Now we want to show the window
+		 * since it's done rendering. */
 		SDL_ShowWindow(win);
 
 		switch (ev.type) {
