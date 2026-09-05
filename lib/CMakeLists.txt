@@ -20,7 +20,7 @@ project(libyukino LANGUAGES C VERSION 0.1.0)
 
 find_package(PkgConfig REQUIRED)
 
-pkg_check_modules(XCB xcb xcb-image)
+pkg_check_modules(XCB xcb)
 pkg_check_modules(ZLIB zlib)
 
 # Make these empty for now

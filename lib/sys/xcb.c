@@ -21,7 +21,6 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <xcb/xcb.h>
-#include <xcb/xcb_image.h>
 
 enum {
 	ATOM_NET_CLIENT_LIST, /* actually _NET_CLIENT_LIST_STACKING */
@@ -59,6 +58,10 @@ struct yukino_connection_data {
 	uint32_t green_bits;
 	uint32_t blue_bits;
 
+	uint32_t scanline_pad;
+
+	unsigned int big_endian : 1;
+
 	/* :) */
 	xcb_atom_t atoms[ATOM_MAX_];
 };
@@ -66,6 +69,17 @@ struct yukino_connection_data {
 #include "../yukino_c.h"
 
 /* xcb helper functions -- dont mind this */
+
+static xcb_format_t *format_by_depth(const xcb_setup_t *setup, uint8_t depth)
+{
+	xcb_format_iterator_t fmt = xcb_setup_pixmap_formats_iterator(setup);
+
+	for (; fmt.rem; xcb_format_next(&fmt))
+		if (fmt.data->depth == depth)
+			return fmt.data;
+
+	return NULL;
+}
 
 /* teehee */
 static xcb_screen_t *screen_of_display(xcb_connection_t *c, int screen)
@@ -354,13 +368,13 @@ static yukino_result_t yukino_xcb_window_decorated_position(
 
 static yukino_result_t yukino_xcb_lock(yukino_connection_t *conn)
 {
-	xcb_grab_server(conn->conn_data.conn);
+	//xcb_grab_server(conn->conn_data.conn);
 	return YUKINO_RESULT_OK;
 }
 
 static yukino_result_t yukino_xcb_unlock(yukino_connection_t *conn)
 {
-	xcb_ungrab_server(conn->conn_data.conn);
+	//xcb_ungrab_server(conn->conn_data.conn);
 	xcb_flush(conn->conn_data.conn);
 	return YUKINO_RESULT_OK;
 }
@@ -371,22 +385,104 @@ static yukino_result_t yukino_xcb_take_window(yukino_connection_t *conn,
 	yukino_window_t win, uint32_t x, uint32_t y, uint32_t w, uint32_t h,
 	yukino_pixel_proc_t pixel_func, void *userdata)
 {
-	xcb_image_t *img;
+	xcb_get_image_cookie_t cookie;
+	xcb_get_image_reply_t *reply;
+	uint8_t *data;
+	int len;
+	uint8_t bpp, bitspp;
+	const xcb_setup_t *setup;
+	const xcb_format_t *fmt;
+	unsigned int big_endian;
+	uint8_t scanline_pad;
+	size_t stride;
 
-	img = xcb_image_get(conn->conn_data.conn,
+	/* XXX check whether length matches up */
+	setup = xcb_get_setup(conn->conn_data.conn);
+	big_endian = setup->bitmap_format_bit_order;
+
+	cookie = xcb_get_image(conn->conn_data.conn, XCB_IMAGE_FORMAT_Z_PIXMAP,
 		conn->conn_data.default_display_screen->root, x, y, w, h,
-		0xFFFFFFFF, XCB_IMAGE_FORMAT_Z_PIXMAP);
-	if (!img)
-		return YUKINO_RESULT_INVALID_PARAM; /* probably */
+		0xFFFFFFFF);
 
-	/* XXX would be nice to optimize for the common case */
-	for (y = 0; y < img->height; y++) {
-		for (x = 0; x < img->width; x++) {
+	reply = xcb_get_image_reply(conn->conn_data.conn, cookie, NULL);
+	if (!reply)
+		return YUKINO_RESULT_UNSUPPORTED;
+
+	data = xcb_get_image_data(reply);
+	len = xcb_get_image_data_length(reply);
+
+	fmt = format_by_depth(setup, reply->depth);
+
+	bpp = (fmt->bits_per_pixel + 7) / 8;
+	if (bpp > 4) {
+		/* WTF? */
+		free(reply);
+		return YUKINO_RESULT_UNSUPPORTED;
+	}
+
+	scanline_pad = fmt->scanline_pad;
+
+	/* calculate stride */
+	stride = w * fmt->bits_per_pixel;
+	stride = stride + (stride % fmt->scanline_pad);
+	stride >>= 3;
+
+	/* note: reusing function args here as iterators */
+	for (y = 0; y < h; y++) {
+		for (x = 0; x < w; x++) {
+			/* TODO need to optimize this heavily */
 			yukino_result_t r;
 			uint32_t pxl;
-			unsigned char rgb[3];
+			unsigned char rgb[4]; /* used as a temp buf, hence 4 bytes */
+			uint8_t *tdata = data + ((x * fmt->bits_per_pixel) >> 3);
 
-			pxl = xcb_image_get_pixel(img, x, y);
+			/* optimized(?) memcpy */
+			switch (bpp) {
+			case 4:
+				rgb[3] = tdata[3];
+			case 3:
+				rgb[2] = tdata[2];
+			case 2:
+				rgb[1] = tdata[1];
+			case 1:
+				rgb[0] = tdata[0];
+			}
+
+			pxl = 0;
+
+			if (conn->conn_data.big_endian) {
+				unsigned char *ptr = rgb;
+
+				switch (bpp) {
+				case 4:
+					pxl |= *ptr++;
+					pxl <<= 8;
+				case 3:
+					pxl |= *ptr++;
+					pxl <<= 8;
+				case 2:
+					pxl |= *ptr++;
+					pxl <<= 8;
+				case 1:
+					pxl |= *ptr++;
+					break;
+				}
+			} else {
+				switch (bpp) {
+				case 4:
+					pxl |= rgb[3];
+					pxl <<= 8;
+				case 3:
+					pxl |= rgb[2];
+					pxl <<= 8;
+				case 2:
+					pxl |= rgb[1];
+					pxl <<= 8;
+				case 1:
+					pxl |= rgb[0];
+					break;
+				}
+			}
 
 #define SCALE(x, color) \
 	((((x) & conn->conn_data.color##_mask) \
@@ -398,13 +494,15 @@ static yukino_result_t yukino_xcb_take_window(yukino_connection_t *conn,
 #undef SCALE
 
 			if ((r = pixel_func(userdata, rgb)) < 0) {
-				xcb_image_destroy(img);
+				free(reply);
 				return r;
 			}
 		}
+		data += stride;
 	}
 
-	xcb_image_destroy(img);
+	free(reply);
+
 	return YUKINO_RESULT_OK;
 }
 
