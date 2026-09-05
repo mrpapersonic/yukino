@@ -92,4 +92,34 @@ uint32_t yukino_adler32_get(struct yukino_adler32 *a32);
 yukino_result_t yukino_xcb_connect(yukino_connection_t **pconn);
 #endif
 
+YUKINO_INLINE unsigned int yukino_ctz32(uint32_t x)
+{
+#ifdef __GNUC__
+	return __builtin_ctz(x);
+#else
+	unsigned int i;
+
+	if (!x) return 32;
+
+	for (i = 0; !(x & 1); x >>= 1, i++)
+		;
+
+	return i;
+#endif
+}
+
+YUKINO_INLINE unsigned int yukino_popcnt32(uint32_t x)
+{
+#ifdef __GNUC__
+	return __builtin_popcount(x);
+#else
+	unsigned int i, j;
+
+	for (i = 0, j = 0; j < (sizeof(x) * CHAR_BIT); x >>= 1, j++)
+		i += (x & 1);
+
+	return i;
+#endif
+}
+
 #endif /* YUKINO_C_H_ */

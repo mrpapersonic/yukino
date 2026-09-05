@@ -539,15 +539,15 @@ yukino_result_t yukino_xcb_connect(yukino_connection_t **pconn)
 	conn->conn_data.green_mask = vistype->green_mask;
 	conn->conn_data.blue_mask = vistype->blue_mask;
 
-	conn->conn_data.red_shift = __builtin_ctz(conn->conn_data.red_mask);
-	conn->conn_data.green_shift = __builtin_ctz(conn->conn_data.green_mask);
-	conn->conn_data.blue_shift = __builtin_ctz(conn->conn_data.blue_mask);
+	conn->conn_data.red_shift = yukino_ctz32(conn->conn_data.red_mask);
+	conn->conn_data.green_shift = yukino_ctz32(conn->conn_data.green_mask);
+	conn->conn_data.blue_shift = yukino_ctz32(conn->conn_data.blue_mask);
 
-	conn->conn_data.red_bits = __builtin_popcount(conn->conn_data.red_mask);
+	conn->conn_data.red_bits = yukino_popcnt32(conn->conn_data.red_mask);
 	conn->conn_data.green_bits
-		= __builtin_popcount(conn->conn_data.green_mask);
+		= yukino_popcnt32(conn->conn_data.green_mask);
 	conn->conn_data.blue_bits
-		= __builtin_popcount(conn->conn_data.blue_mask);
+		= yukino_popcnt32(conn->conn_data.blue_mask);
 
 	/* Fill the vtable */
 	conn->disconnect = yukino_xcb_disconnect;
