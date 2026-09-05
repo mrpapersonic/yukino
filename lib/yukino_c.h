@@ -33,10 +33,17 @@
 
 /* privates */
 struct yukino_connection {
+	/* Disconnect. This is the only function pointer that should never
+	 * be NULL. */
 	yukino_result_t (*disconnect)(yukino_connection_t *conn);
+
+	/* Get the current *desktop* resolution (not display...) */
 	yukino_result_t (*display_resolution)(
 		yukino_connection_t *conn, uint32_t *w, uint32_t *h);
 
+	/* Window iteration. It's done this way primarily so that one
+	 * could queue up a bunch of window iterations, and benefit
+	 * from xcb's async API. */
 	yukino_result_t (*window_iter_start)(yukino_connection_t *conn,
 		const yukino_window_t *win, yukino_window_iter_t **pwi);
 	yukino_result_t (*window_iter)(yukino_connection_t *conn,
@@ -44,25 +51,32 @@ struct yukino_connection {
 	yukino_result_t (*window_iter_end)(
 		yukino_connection_t *conn, yukino_window_iter_t *wi);
 
+	/* Grabs the window position. */
 	yukino_result_t (*window_position)(yukino_connection_t *conn,
 		yukino_window_t win, yukino_rect_t *pr);
 
+	/* Grabs the window's decorated position */
 	yukino_result_t (*window_decorated_position)(yukino_connection_t *conn,
 		yukino_window_t win, yukino_rect_t *pr);
 
+	/* Takes a screenshot and passes each pixel to pixel_func, in order
+	 * of left-right top-down. */
 	yukino_result_t (*take)(yukino_connection_t *conn, uint32_t x,
 		uint32_t y, uint32_t w, uint32_t h,
 		yukino_pixel_proc_t pixel_func, void *userdata);
 
+	/* Locks and unlocks the display server, if possible, otherwise
+	 * return YUKINO_RESULT_UNSUPPORTED. This does not have to be
+	 * reference counted (and should *not* be -- that's done at
+	 * the top level already). */
 	yukino_result_t (*lock)(yukino_connection_t *conn);
 	yukino_result_t (*unlock)(yukino_connection_t *conn);
 
-	/* refcnt for locking */
+	/* Locking reference count. */
 	uint32_t lock_ref;
 
 #ifdef YUKINO_CONNECTION_DATA
-	/* this is here for individual backends to define before including
-	 * yukino_c.h */
+	/* Private data for each backend to define. */
 	struct yukino_connection_data conn_data;
 #endif
 };
