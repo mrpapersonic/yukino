@@ -46,18 +46,6 @@ struct yukino_connection_data {
 	int default_display;
 	xcb_screen_t *default_display_screen; /* cache this */
 
-	uint32_t red_mask;
-	uint32_t green_mask;
-	uint32_t blue_mask;
-
-	uint32_t red_shift;
-	uint32_t green_shift;
-	uint32_t blue_shift;
-
-	uint32_t red_bits;
-	uint32_t green_bits;
-	uint32_t blue_bits;
-
 	/* :) */
 	xcb_atom_t atoms[ATOM_MAX_];
 };
@@ -77,6 +65,22 @@ static xcb_format_t *format_by_depth(const xcb_setup_t *setup, uint8_t depth)
 	return NULL;
 }
 
+static const xcb_depth_t *get_depth_from_format(
+	xcb_screen_t *screen, const xcb_format_t *format)
+{
+	// 1. Get the numerical depth from the format structure
+	uint8_t target_depth = format->depth;
+
+	// 2. Iterate through the allowed depths of the screen
+	xcb_depth_iterator_t depth_iter
+		= xcb_screen_allowed_depths_iterator(screen);
+	for (; depth_iter.rem; xcb_depth_next(&depth_iter))
+		if (depth_iter.data->depth == target_depth)
+			return depth_iter.data;
+
+	return NULL; // No matching depth found on this screen
+}
+
 /* teehee */
 static xcb_screen_t *screen_of_display(xcb_connection_t *c, int screen)
 {
@@ -90,7 +94,8 @@ static xcb_screen_t *screen_of_display(xcb_connection_t *c, int screen)
 	return NULL;
 }
 
-static xcb_visualtype_t *find_visual(xcb_screen_t *screen)
+static xcb_visualtype_t *find_visual_by_id(
+	xcb_screen_t *screen, xcb_visualid_t visid)
 {
 	/* Horrible */
 	xcb_depth_iterator_t depth_iter
@@ -100,11 +105,33 @@ static xcb_visualtype_t *find_visual(xcb_screen_t *screen)
 		xcb_visualtype_iterator_t visual_iter
 			= xcb_depth_visuals_iterator(depth_iter.data);
 		for (; visual_iter.rem; xcb_visualtype_next(&visual_iter))
-			if (screen->root_visual == visual_iter.data->visual_id)
+			if (visid == visual_iter.data->visual_id)
 				return visual_iter.data;
 	}
 
 	return NULL;
+}
+
+static xcb_visualtype_t *find_visual_for_window(
+	yukino_connection_t *conn, xcb_window_t win)
+{
+	xcb_get_window_attributes_cookie_t cookie;
+	xcb_get_window_attributes_reply_t *reply;
+	xcb_visualtype_t *r;
+
+	cookie = xcb_get_window_attributes(conn->conn_data.conn, win);
+	reply = xcb_get_window_attributes_reply(
+		conn->conn_data.conn, cookie, NULL);
+
+	if (!reply)
+		return NULL;
+
+	r = find_visual_by_id(
+		conn->conn_data.default_display_screen, reply->visual);
+
+	free(reply);
+
+	return r;
 }
 
 static yukino_result_t yukino_xcb_disconnect(yukino_connection_t *conn)
@@ -384,44 +411,69 @@ static yukino_result_t yukino_xcb_take_window(yukino_connection_t *conn,
 	xcb_get_image_cookie_t cookie;
 	xcb_get_image_reply_t *reply;
 	uint8_t *data;
-	int len;
 	uint8_t bpp, bitspp;
-	const xcb_setup_t *setup;
-	const xcb_format_t *fmt;
 	unsigned int big_endian;
-	uint8_t scanline_pad;
 	size_t stride;
+	/* :) */
+	uint32_t red_mask, green_mask, blue_mask;
+	uint32_t red_shift, green_shift, blue_shift;
+	uint32_t red_div, green_div, blue_div;
 
-	/* XXX check whether length matches up */
-	setup = xcb_get_setup(conn->conn_data.conn);
-	big_endian = setup->bitmap_format_bit_order;
+	{
+		xcb_visualtype_t *vistype;
+
+		/* meh */
+		vistype = find_visual_for_window(conn, win);
+		if (!vistype)
+			return YUKINO_RESULT_UNSUPPORTED;
+
+#define FILL(color) \
+	do { \
+		color##_mask = vistype->color##_mask; \
+		color##_shift = yukino_ctz32(color##_mask); \
+		color##_div = color##_mask >> color##_shift; \
+	} while (0)
+
+		FILL(red);
+		FILL(green);
+		FILL(blue);
+#undef FILL
+	}
 
 	cookie = xcb_get_image(conn->conn_data.conn, XCB_IMAGE_FORMAT_Z_PIXMAP,
-		conn->conn_data.default_display_screen->root, x, y, w, h,
-		0xFFFFFFFF);
+		win, x, y, w, h, 0xFFFFFFFF);
 
 	reply = xcb_get_image_reply(conn->conn_data.conn, cookie, NULL);
 	if (!reply)
 		return YUKINO_RESULT_UNSUPPORTED;
 
 	data = xcb_get_image_data(reply);
-	len = xcb_get_image_data_length(reply);
 
-	fmt = format_by_depth(setup, reply->depth);
+	{
+		const xcb_setup_t *setup;
+		const xcb_format_t *fmt;
 
-	bpp = (fmt->bits_per_pixel + 7) / 8;
-	if (bpp > 4) {
-		/* WTF? */
-		free(reply);
-		return YUKINO_RESULT_UNSUPPORTED;
+		setup = xcb_get_setup(conn->conn_data.conn);
+		big_endian = setup->bitmap_format_bit_order;
+
+		fmt = format_by_depth(setup, reply->depth);
+
+		bitspp = fmt->bits_per_pixel;
+
+		bpp = (bitspp + 7) / 8;
+
+		/* calculate stride */
+		stride = w * fmt->bits_per_pixel;
+		stride = stride + (stride % fmt->scanline_pad);
+		stride >>= 3;
+
+		if ((bpp > 4)
+			|| (xcb_get_image_data_length(reply) != (h * stride))) {
+			/* something is horribly wrong */
+			free(reply);
+			return YUKINO_RESULT_UNSUPPORTED;
+		}
 	}
-
-	scanline_pad = fmt->scanline_pad;
-
-	/* calculate stride */
-	stride = w * fmt->bits_per_pixel;
-	stride = stride + (stride % fmt->scanline_pad);
-	stride >>= 3;
 
 	/* note: reusing function args here as iterators */
 	for (y = 0; y < h; y++) {
@@ -430,8 +482,7 @@ static yukino_result_t yukino_xcb_take_window(yukino_connection_t *conn,
 			uint32_t pxl;
 			unsigned char
 				rgb[4]; /* used as a temp buf, hence 4 bytes */
-			uint8_t *tdata
-				= data + ((x * fmt->bits_per_pixel) >> 3);
+			uint8_t *tdata = data + ((x * bitspp) >> 3);
 
 			/* clang-format off */
 			switch (bpp) {
@@ -468,9 +519,7 @@ static yukino_result_t yukino_xcb_take_window(yukino_connection_t *conn,
 			}
 
 #define SCALE(x, color) \
-	((((x) & conn->conn_data.color##_mask) \
-		 >> conn->conn_data.color##_shift) \
-		* 255 / ((1 << conn->conn_data.color##_bits) - 1))
+	((((x) & color##_mask) >> color##_shift) * 255 / color##_div)
 			rgb[0] = SCALE(pxl, red);
 			rgb[1] = SCALE(pxl, green);
 			rgb[2] = SCALE(pxl, blue);
@@ -526,28 +575,11 @@ yukino_result_t yukino_xcb_connect(yukino_connection_t **pconn)
 		atom_cookies[i] = xcb_intern_atom(conn->conn_data.conn, 1,
 			atom_names[i].len, atom_names[i].name);
 
-	/* Also cache this ... */
-	vistype = find_visual(conn->conn_data.default_display_screen);
-
 	if (!vistype) {
 		xcb_disconnect(conn->conn_data.conn);
 		free(conn);
 		return YUKINO_RESULT_UNSUPPORTED;
 	}
-
-	conn->conn_data.red_mask = vistype->red_mask;
-	conn->conn_data.green_mask = vistype->green_mask;
-	conn->conn_data.blue_mask = vistype->blue_mask;
-
-	conn->conn_data.red_shift = yukino_ctz32(conn->conn_data.red_mask);
-	conn->conn_data.green_shift = yukino_ctz32(conn->conn_data.green_mask);
-	conn->conn_data.blue_shift = yukino_ctz32(conn->conn_data.blue_mask);
-
-	conn->conn_data.red_bits = yukino_popcnt32(conn->conn_data.red_mask);
-	conn->conn_data.green_bits
-		= yukino_popcnt32(conn->conn_data.green_mask);
-	conn->conn_data.blue_bits
-		= yukino_popcnt32(conn->conn_data.blue_mask);
 
 	/* Fill the vtable */
 	conn->disconnect = yukino_xcb_disconnect;
