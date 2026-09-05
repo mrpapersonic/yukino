@@ -58,10 +58,6 @@ struct yukino_connection_data {
 	uint32_t green_bits;
 	uint32_t blue_bits;
 
-	uint32_t scanline_pad;
-
-	unsigned int big_endian : 1;
-
 	/* :) */
 	xcb_atom_t atoms[ATOM_MAX_];
 };
@@ -430,58 +426,43 @@ static yukino_result_t yukino_xcb_take_window(yukino_connection_t *conn,
 	/* note: reusing function args here as iterators */
 	for (y = 0; y < h; y++) {
 		for (x = 0; x < w; x++) {
-			/* TODO need to optimize this heavily */
 			yukino_result_t r;
 			uint32_t pxl;
 			unsigned char rgb[4]; /* used as a temp buf, hence 4 bytes */
 			uint8_t *tdata = data + ((x * fmt->bits_per_pixel) >> 3);
 
-			/* optimized(?) memcpy */
+			/* clang-format off */
 			switch (bpp) {
-			case 4:
-				rgb[3] = tdata[3];
-			case 3:
-				rgb[2] = tdata[2];
-			case 2:
-				rgb[1] = tdata[1];
-			case 1:
-				rgb[0] = tdata[0];
+			case 4: rgb[3] = tdata[3];
+			case 3: rgb[2] = tdata[2];
+			case 2: rgb[1] = tdata[1];
+			case 1: rgb[0] = tdata[0];
 			}
+			/* clang-format on */
 
 			pxl = 0;
 
-			if (conn->conn_data.big_endian) {
+			/* FIXME make sure this isn't too slow */
+			if (big_endian) {
 				unsigned char *ptr = rgb;
 
+				/* clang-format off */
 				switch (bpp) {
-				case 4:
-					pxl |= *ptr++;
-					pxl <<= 8;
-				case 3:
-					pxl |= *ptr++;
-					pxl <<= 8;
-				case 2:
-					pxl |= *ptr++;
-					pxl <<= 8;
-				case 1:
-					pxl |= *ptr++;
-					break;
+				case 4: pxl |= *ptr++; pxl <<= 8;
+				case 3: pxl |= *ptr++; pxl <<= 8;
+				case 2: pxl |= *ptr++; pxl <<= 8;
+				case 1: pxl |= *ptr++; break;
 				}
+				/* clang-format on */
 			} else {
+				/* clang-format off */
 				switch (bpp) {
-				case 4:
-					pxl |= rgb[3];
-					pxl <<= 8;
-				case 3:
-					pxl |= rgb[2];
-					pxl <<= 8;
-				case 2:
-					pxl |= rgb[1];
-					pxl <<= 8;
-				case 1:
-					pxl |= rgb[0];
-					break;
+				case 4: pxl |= rgb[3]; pxl <<= 8;
+				case 3: pxl |= rgb[2]; pxl <<= 8;
+				case 2: pxl |= rgb[1]; pxl <<= 8;
+				case 1: pxl |= rgb[0]; break;
 				}
+				/* clang-format on */
 			}
 
 #define SCALE(x, color) \
