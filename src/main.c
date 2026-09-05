@@ -350,10 +350,28 @@ int main(int argc, char *argv[])
 	if (!sur)
 		return 1;
 
-	if (!SDL_CreateWindowAndRenderer("yukino", sur->w, sur->h,
-		    SDL_WINDOW_FULLSCREEN | SDL_WINDOW_HIDDEN | SDL_WINDOW_HIGH_PIXEL_DENSITY, &win, &ren)) {
-		goto end;
+	{
+		SDL_PropertiesID props = SDL_CreateProperties();
+
+		SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_X_NUMBER, 0);
+		SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_Y_NUMBER, 0);
+		SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, sur->h);
+		SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, sur->w);
+		SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_ALWAYS_ON_TOP_BOOLEAN, true);
+		SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_BORDERLESS_BOOLEAN, true);
+		SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_HIDDEN_BOOLEAN, true);
+		SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_HIGH_PIXEL_DENSITY_BOOLEAN, true);
+
+		win = SDL_CreateWindowWithProperties(props);
+
+		SDL_DestroyProperties(props);
 	}
+
+	if (!win) goto end;
+
+	ren = SDL_CreateRenderer(win, NULL);
+
+	if (!ren) goto end;
 
 	density = SDL_GetWindowPixelDensity(win);
 
