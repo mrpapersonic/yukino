@@ -134,12 +134,35 @@ SCREENSHOT(png)
 
 yukino_result_t yukino_lock(yukino_connection_t *conn)
 {
-	return conn->lock ? conn->lock(conn) : YUKINO_RESULT_UNSUPPORTED;
+	yukino_result_t r;
+
+	if (conn->grab_ref)
+		return YUKINO_RESULT_OK;
+
+	r = conn->lock ? conn->lock(conn) : YUKINO_RESULT_UNSUPPORTED;
+	if (r < 0)
+		return r;
+
+	/* only increase refcount if it succeeded */
+	conn->grab_ref++;
+
+	return YUKINO_RESULT_OK;
 }
 
 yukino_result_t yukino_unlock(yukino_connection_t *conn)
 {
-	return conn->unlock ? conn->unlock(conn) : YUKINO_RESULT_UNSUPPORTED;
+	yukino_result_t r;
+
+	/* do nothing ? */
+	if (!conn->grab_ref)
+		return YUKINO_RESULT_OK;
+
+	r = conn->unlock ? conn->unlock(conn) : YUKINO_RESULT_UNSUPPORTED;
+	if (r < 0)
+		return r;
+
+	conn->grab_ref--;
+	return r;
 }
 
 yukino_result_t yukino_rect_has_point(

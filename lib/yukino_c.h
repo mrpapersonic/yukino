@@ -57,6 +57,9 @@ struct yukino_connection {
 	yukino_result_t (*lock)(yukino_connection_t *conn);
 	yukino_result_t (*unlock)(yukino_connection_t *conn);
 
+	/* refcnt for locking */
+	uint32_t lock_ref;
+
 #ifdef YUKINO_CONNECTION_DATA
 	/* this is here for individual backends to define before including
 	 * yukino_c.h */

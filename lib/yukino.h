@@ -110,6 +110,8 @@ YUKINO_EXTERN yukino_result_t yukino_window_decorated_position(
  * a full display screenshot, take note of the position of all of the
  * windows, and THEN let the user crop it
  *
+ * This function is reference counted.
+ *
  * BUT if we crash we'd end up leaving x11 in a buggy state ... */
 
 YUKINO_EXTERN yukino_result_t yukino_lock(yukino_connection_t *conn);
