@@ -65,22 +65,6 @@ static xcb_format_t *format_by_depth(const xcb_setup_t *setup, uint8_t depth)
 	return NULL;
 }
 
-static const xcb_depth_t *get_depth_from_format(
-	xcb_screen_t *screen, const xcb_format_t *format)
-{
-	// 1. Get the numerical depth from the format structure
-	uint8_t target_depth = format->depth;
-
-	// 2. Iterate through the allowed depths of the screen
-	xcb_depth_iterator_t depth_iter
-		= xcb_screen_allowed_depths_iterator(screen);
-	for (; depth_iter.rem; xcb_depth_next(&depth_iter))
-		if (depth_iter.data->depth == target_depth)
-			return depth_iter.data;
-
-	return NULL; // No matching depth found on this screen
-}
-
 /* teehee */
 static xcb_screen_t *screen_of_display(xcb_connection_t *c, int screen)
 {
@@ -552,7 +536,6 @@ static yukino_result_t yukino_xcb_take(yukino_connection_t *conn, uint32_t x,
 yukino_result_t yukino_xcb_connect(yukino_connection_t **pconn)
 {
 	yukino_connection_t *conn;
-	xcb_visualtype_t *vistype;
 	xcb_intern_atom_cookie_t atom_cookies[ATOM_MAX_];
 	int i;
 
@@ -574,12 +557,6 @@ yukino_result_t yukino_xcb_connect(yukino_connection_t **pconn)
 	for (i = 0; i < ATOM_MAX_; i++)
 		atom_cookies[i] = xcb_intern_atom(conn->conn_data.conn, 1,
 			atom_names[i].len, atom_names[i].name);
-
-	if (!vistype) {
-		xcb_disconnect(conn->conn_data.conn);
-		free(conn);
-		return YUKINO_RESULT_UNSUPPORTED;
-	}
 
 	/* Fill the vtable */
 	conn->disconnect = yukino_xcb_disconnect;
