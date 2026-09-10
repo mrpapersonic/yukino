@@ -288,6 +288,19 @@ static void pixels_to_points(
 	out->h = in->h / density;
 }
 
+static int get_num_displays(void)
+{
+	SDL_DisplayID *disp;
+	int r;
+
+	disp = SDL_GetDisplays(&r);
+	if (!disp)
+		return -1;
+
+	free(disp);
+	return r;
+}
+
 int main(int argc, char *argv[])
 {
 	SDL_Surface *sur;
@@ -356,22 +369,29 @@ int main(int argc, char *argv[])
 		SDL_PropertiesID props = SDL_CreateProperties();
 
 		SDL_SetNumberProperty(
-			props, SDL_PROP_WINDOW_CREATE_X_NUMBER, 0);
-		SDL_SetNumberProperty(
-			props, SDL_PROP_WINDOW_CREATE_Y_NUMBER, 0);
-		SDL_SetNumberProperty(
 			props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, sur->h);
 		SDL_SetNumberProperty(
 			props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, sur->w);
-		SDL_SetBooleanProperty(props,
-			SDL_PROP_WINDOW_CREATE_ALWAYS_ON_TOP_BOOLEAN, true);
-		SDL_SetBooleanProperty(
-			props, SDL_PROP_WINDOW_CREATE_BORDERLESS_BOOLEAN, true);
-		SDL_SetBooleanProperty(
-			props, SDL_PROP_WINDOW_CREATE_HIDDEN_BOOLEAN, true);
-		SDL_SetBooleanProperty(props,
-			SDL_PROP_WINDOW_CREATE_HIGH_PIXEL_DENSITY_BOOLEAN,
-			true);
+
+		/* Need two different branches to get this to actually work */
+		if (get_num_displays() > 1) {
+			SDL_SetNumberProperty(
+				props, SDL_PROP_WINDOW_CREATE_X_NUMBER, 0);
+			SDL_SetNumberProperty(
+				props, SDL_PROP_WINDOW_CREATE_Y_NUMBER, 0);
+			SDL_SetBooleanProperty(props,
+				SDL_PROP_WINDOW_CREATE_ALWAYS_ON_TOP_BOOLEAN, true);
+			SDL_SetBooleanProperty(
+				props, SDL_PROP_WINDOW_CREATE_BORDERLESS_BOOLEAN, true);
+			SDL_SetBooleanProperty(
+				props, SDL_PROP_WINDOW_CREATE_HIDDEN_BOOLEAN, true);
+			SDL_SetBooleanProperty(props,
+				SDL_PROP_WINDOW_CREATE_HIGH_PIXEL_DENSITY_BOOLEAN,
+				true);
+		} else {
+			SDL_SetBooleanProperty(props,
+				SDL_PROP_WINDOW_CREATE_FULLSCREEN_BOOLEAN, true);
+		}
 
 		win = SDL_CreateWindowWithProperties(props);
 
