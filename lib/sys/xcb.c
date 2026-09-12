@@ -388,6 +388,39 @@ static yukino_result_t yukino_xcb_unlock(yukino_connection_t *conn)
 
 /* ------------------------------------------------------------------------ */
 
+static uint32_t read_pixel(const uint8_t *p, uint32_t x, uint8_t bpp,
+	unsigned int big_endian)
+{
+	uint32_t pxl;
+
+	/* shift it to the right place */
+	p += (x * bpp) >> 3;
+
+	if (bpp == 4) {
+		pxl = ((x & 1) != big_endian) ? (*p & 0xf) : (*p >> 4);
+	} else if (big_endian) {
+		pxl = 0;
+
+		switch (bpp) {
+		case 32: pxl |= *p++; pxl <<= 8;
+		case 24: pxl |= *p++; pxl <<= 8;
+		case 16: pxl |= *p++; pxl <<= 8;
+		case 8:  pxl |= *p; break;
+		}
+	} else {
+		pxl = 0;
+
+		switch (bpp) {
+		case 32: pxl |= p[3]; pxl <<= 8;
+		case 24: pxl |= p[2]; pxl <<= 8;
+		case 16: pxl |= p[1]; pxl <<= 8;
+		case 8: pxl |= p[0]; break;
+		}
+	}
+
+	return pxl;
+}
+
 static yukino_result_t yukino_xcb_take_window(yukino_connection_t *conn,
 	yukino_window_t win, uint32_t x, uint32_t y, uint32_t w, uint32_t h,
 	yukino_pixel_proc_t pixel_func, void *userdata)
@@ -395,7 +428,7 @@ static yukino_result_t yukino_xcb_take_window(yukino_connection_t *conn,
 	xcb_get_image_cookie_t cookie;
 	xcb_get_image_reply_t *reply;
 	uint8_t *data;
-	uint8_t bpp, bitspp;
+	uint8_t bpp;
 	unsigned int big_endian;
 	size_t stride;
 	/* :) */
@@ -442,16 +475,14 @@ static yukino_result_t yukino_xcb_take_window(yukino_connection_t *conn,
 
 		fmt = format_by_depth(setup, reply->depth);
 
-		bitspp = fmt->bits_per_pixel;
-
-		bpp = (bitspp + 7) / 8;
+		bpp = fmt->bits_per_pixel;
 
 		/* calculate stride */
-		stride = w * fmt->bits_per_pixel;
+		stride = w * bpp;
 		stride = stride + (stride % fmt->scanline_pad);
 		stride >>= 3;
 
-		if ((bpp > 4)
+		if ((bpp > 32)
 			|| (xcb_get_image_data_length(reply) != (h * stride))) {
 			/* something is horribly wrong */
 			free(reply);
@@ -464,43 +495,9 @@ static yukino_result_t yukino_xcb_take_window(yukino_connection_t *conn,
 		for (x = 0; x < w; x++) {
 			yukino_result_t r;
 			uint32_t pxl;
-			unsigned char
-				rgb[4]; /* used as a temp buf, hence 4 bytes */
-			uint8_t *tdata = data + ((x * bitspp) >> 3);
+			unsigned char rgb[3];
 
-			/* clang-format off */
-			switch (bpp) {
-			case 4: rgb[3] = tdata[3];
-			case 3: rgb[2] = tdata[2];
-			case 2: rgb[1] = tdata[1];
-			case 1: rgb[0] = tdata[0];
-			}
-			/* clang-format on */
-
-			pxl = 0;
-
-			/* FIXME make sure this isn't too slow */
-			if (big_endian) {
-				unsigned char *ptr = rgb;
-
-				/* clang-format off */
-				switch (bpp) {
-				case 4: pxl |= *ptr++; pxl <<= 8;
-				case 3: pxl |= *ptr++; pxl <<= 8;
-				case 2: pxl |= *ptr++; pxl <<= 8;
-				case 1: pxl |= *ptr++; break;
-				}
-				/* clang-format on */
-			} else {
-				/* clang-format off */
-				switch (bpp) {
-				case 4: pxl |= rgb[3]; pxl <<= 8;
-				case 3: pxl |= rgb[2]; pxl <<= 8;
-				case 2: pxl |= rgb[1]; pxl <<= 8;
-				case 1: pxl |= rgb[0]; break;
-				}
-				/* clang-format on */
-			}
+			pxl = read_pixel(data, x, bpp, big_endian);
 
 #define SCALE(x, color) \
 	((((x) & color##_mask) >> color##_shift) * 255 / color##_div)
