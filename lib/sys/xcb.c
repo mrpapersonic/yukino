@@ -185,10 +185,7 @@ static yukino_result_t yukino_xcb_window_iter_start(yukino_connection_t *conn,
 	if (!wi)
 		return YUKINO_RESULT_OUT_OF_MEMORY;
 
-	/* XXX: wouldn't it be better to just list toplevels when `win` is NULL
-	 */
 	if (!win && conn->conn_data.atoms[ATOM_NET_CLIENT_LIST_STACKING]) {
-		/* Try _NET_CLIENT_LIST */
 		wi->type = WITER_NET_CLIENT_LIST;
 
 		wi->u.nlist.cookie = xcb_get_property(conn->conn_data.conn, 0,
@@ -547,13 +544,13 @@ yukino_result_t yukino_xcb_connect(yukino_connection_t **pconn)
 		return YUKINO_RESULT_UNSUPPORTED;
 	}
 
-	/* Cache this at startup */
-	conn->conn_data.default_display_screen = screen_of_display(
-		conn->conn_data.conn, conn->conn_data.default_display);
-
 	for (i = 0; i < ATOM_MAX_; i++)
 		atom_cookies[i] = xcb_intern_atom(conn->conn_data.conn, 1,
 			atom_names[i].len, atom_names[i].name);
+
+	/* Cache this at startup */
+	conn->conn_data.default_display_screen = screen_of_display(
+		conn->conn_data.conn, conn->conn_data.default_display);
 
 	/* Fill the vtable */
 	conn->disconnect = yukino_xcb_disconnect;
