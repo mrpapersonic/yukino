@@ -372,25 +372,31 @@ int main(int argc, char *argv[])
 			props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, sur->h);
 		SDL_SetNumberProperty(
 			props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, sur->w);
+		SDL_SetBooleanProperty(
+			props, SDL_PROP_WINDOW_CREATE_HIDDEN_BOOLEAN, true);
+		SDL_SetBooleanProperty(props,
+			SDL_PROP_WINDOW_CREATE_ALWAYS_ON_TOP_BOOLEAN, true);
+		SDL_SetBooleanProperty(
+			props, SDL_PROP_WINDOW_CREATE_BORDERLESS_BOOLEAN, true);
+		SDL_SetBooleanProperty(props,
+			SDL_PROP_WINDOW_CREATE_HIGH_PIXEL_DENSITY_BOOLEAN,
+			true);
+		SDL_SetNumberProperty(
+			props, SDL_PROP_WINDOW_CREATE_X_NUMBER, 0);
+		SDL_SetNumberProperty(
+			props, SDL_PROP_WINDOW_CREATE_Y_NUMBER, 0);
 
-		/* Need two different branches to get this to actually work */
-		if (get_num_displays() > 1) {
-			SDL_SetNumberProperty(
-				props, SDL_PROP_WINDOW_CREATE_X_NUMBER, 0);
-			SDL_SetNumberProperty(
-				props, SDL_PROP_WINDOW_CREATE_Y_NUMBER, 0);
+		/* On MATE, if there is only one display, the top bar will push
+		 * the window down. Bypass that by setting the window to
+		 * fullscreen.
+		 *
+		 * We explicitly DON'T do this for multi-display desktops,
+		 * because that ends up having the window on only one display,
+		 * which is Not What We Want */
+		if (get_num_displays() == 1) {
 			SDL_SetBooleanProperty(props,
-				SDL_PROP_WINDOW_CREATE_ALWAYS_ON_TOP_BOOLEAN, true);
-			SDL_SetBooleanProperty(
-				props, SDL_PROP_WINDOW_CREATE_BORDERLESS_BOOLEAN, true);
-			SDL_SetBooleanProperty(
-				props, SDL_PROP_WINDOW_CREATE_HIDDEN_BOOLEAN, true);
-			SDL_SetBooleanProperty(props,
-				SDL_PROP_WINDOW_CREATE_HIGH_PIXEL_DENSITY_BOOLEAN,
+				SDL_PROP_WINDOW_CREATE_FULLSCREEN_BOOLEAN,
 				true);
-		} else {
-			SDL_SetBooleanProperty(props,
-				SDL_PROP_WINDOW_CREATE_FULLSCREEN_BOOLEAN, true);
 		}
 
 		win = SDL_CreateWindowWithProperties(props);
