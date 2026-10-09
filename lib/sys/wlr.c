@@ -222,7 +222,8 @@ struct yukino_screenshot {
 	uint32_t mx, my;
 };
 
-yukino_result_t yukino_wlr_screenshot(struct yukino_wlr *conn,
+yukino_result_t yukino_wlr_screenshot(yukino_connection_t *yconn,
+	struct yukino_wlr *conn,
 	yukino_screenshot_t **ps, uint32_t x, uint32_t y, uint32_t width,
 	uint32_t height)
 {
@@ -230,17 +231,8 @@ yukino_result_t yukino_wlr_screenshot(struct yukino_wlr *conn,
 	yukino_screenshot_t *s;
 	struct zwlr_screencopy_frame_v1 *frame = NULL;
 
-	if (width == YUKINO_SCREENSHOT_DESKTOP_RESOLUTION
-		|| height == YUKINO_SCREENSHOT_DESKTOP_RESOLUTION) {
-		uint32_t dw, dh;
-
-		if ((r = yukino_wayland_display_resolution(conn->wl, &dw, &dh)) < 0)
-			return r;
-		if (width == YUKINO_SCREENSHOT_DESKTOP_RESOLUTION)
-			width = dw;
-		if (height == YUKINO_SCREENSHOT_DESKTOP_RESOLUTION)
-			height = dh;
-	}
+	if ((r = yukino_screenshot_fix_resolution(yconn, &width, &height)) < 0)
+		return r;
 
 	s = malloc(sizeof(*s));
 	if (!s)

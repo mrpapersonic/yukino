@@ -36,7 +36,7 @@ struct yukino_wlr {
 	struct zxdg_output_manager_v1 *om;
 };
 
-yukino_result_t yukino_wlr_screenshot(struct yukino_wlr *conn,
+yukino_result_t yukino_wlr_screenshot(yukino_connection_t *yconn, struct yukino_wlr *conn,
 	yukino_screenshot_t **ps, uint32_t x, uint32_t y, uint32_t w, uint32_t h);
 yukino_result_t yukino_wlr_screenshot_resolution(
 	struct yukino_wlr *conn, yukino_screenshot_t *s, uint32_t *w, uint32_t *h);

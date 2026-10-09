@@ -137,7 +137,7 @@ yukino_result_t yukino_gio_screenshot(yukino_connection_t *conn,
 	yukino_screenshot_t **ps, uint32_t x, uint32_t y, uint32_t w, uint32_t h)
 {
 	if (conn->conn_data.have_wlr)
-		return yukino_wlr_screenshot(&conn->conn_data.wlr, ps, x, y, w, h);
+		return yukino_wlr_screenshot(conn, &conn->conn_data.wlr, ps, x, y, w, h);
 	if (conn->conn_data.have_xdg)
 		return yukino_xdg_screenshot(conn, &conn->conn_data.xdg, ps, x, y, w, h);
 
