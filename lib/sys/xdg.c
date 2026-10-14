@@ -84,13 +84,14 @@ static yukino_result_t map_dbus_message_error_to_yukino(yukino_connection_t *con
 	return map_dbus_error_to_yukino(conn, &err);
 }
 
-/* Like the above but also unrefs the message */
+/* Like the above but also unrefs the message if there is an actual error */
 static yukino_result_t map_dbus_message_error_to_yukino_unref(yukino_connection_t *conn, DBusMessage *msg)
 {
 	yukino_result_t r;
 
 	r = map_dbus_message_error_to_yukino(conn, msg);
-	dbus_message_unref(msg);
+	if (r < 0)
+		dbus_message_unref(msg);
 
 	return r;
 }
