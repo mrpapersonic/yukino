@@ -679,7 +679,7 @@ int main(int argc, char *argv[])
 			SDL_GetRectEnclosingPointsFloat(points, POINTS_MAX_, NULL, &sel);
 		} else {
 			SDL_GetMouseState(&mx, &my);
-			//SCALE_FROM_WINDOW(mx, my, &mx, &my);
+
 			if (windows_query_at_point(mx, my, &w) == YUKINO_RESULT_OK) {
 				pixels_to_points(&sel, &w, 1.0);
 				SCALE_FROM_WINDOW(sel.x, sel.y, &sel.x, &sel.y);
@@ -691,6 +691,8 @@ int main(int argc, char *argv[])
 				sel.h = sur->h;
 			}
 		}
+
+		fixup(&sel, sur);
 
 		rendsel.x = sel.x * scale_to_render;
 		rendsel.y = sel.y * scale_to_render;
