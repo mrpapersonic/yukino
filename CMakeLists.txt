@@ -85,6 +85,12 @@ if(XCB_FOUND)
 	list(APPEND INCLUDE ${XCB_INCLUDE_DIRS})
 endif()
 
+include(CheckFunctionExists)
+check_function_exists(fork HAVE_FORK)
+if(HAVE_FORK)
+	list(APPEND DEFINES "-DHAVE_FORK=1")
+endif()
+
 add_executable(yukino ${SRC_FILES})
 set_property(TARGET yukino PROPERTY C_STANDARD 99)
 

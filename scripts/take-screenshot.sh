@@ -20,14 +20,11 @@ SCREENSHOT_PATH="${SCREENSHOT_DIR}/${YM}/${YMDHMS}_${UUID}.png"
 
 mkdir -p "$SCREENSHOT_DIR/$YM"
 
-yukino --output "$SCREENSHOT_PATH"
+yukino -c -o "$SCREENSHOT_PATH"
 
 if test ! -f "$SCREENSHOT_PATH"; then
 	exit 0
 fi
-
-# Copy image to clipboard first
-xclip -i -selection clipboard -t image/png < "${SCREENSHOT_PATH}"
 
 # If optipng is available, use it to optimize the png for storage
 which optipng >/dev/null 2>&1

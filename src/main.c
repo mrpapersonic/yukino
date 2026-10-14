@@ -28,6 +28,9 @@
 
 #include <limits.h>
 #include <stdio.h>
+#ifdef HAVE_FORK
+# include <unistd.h>
+#endif
 
 #include <getopt.h>
 
@@ -62,7 +65,7 @@ static SDL_Surface *sdl_screenshot(
 	px = sur->pixels;
 	for (y = 0; y < h; y++) {
 		for (x = 0; x < w; x++)
-			if ((r = yukino_screenshot_read(conn, s, px + (x*3))) < 0)
+			if ((r = yukino_screenshot_read(conn, s, px + (x * 3))) < 0)
 				goto err;
 		px += sur->pitch;
 	}
@@ -123,26 +126,34 @@ static yukino_result_t sdl_take_cb(void *conn, uint32_t x, uint32_t y,
 	return YUKINO_RESULT_OK;
 }
 
-static yukino_result_t stdio_write_cb(void *opaque, const void *data, size_t sz)
+static yukino_result_t iostream_write_cb(
+	void *opaque, const void *data, size_t sz)
 {
-	if (fwrite(data, 1, sz, opaque) != sz)
+	if (SDL_WriteIO(opaque, data, sz) != sz)
 		return YUKINO_RESULT_FILE_ERROR;
 	return YUKINO_RESULT_OK;
+}
+
+static void sdl_write_surface_to_png_io(
+	SDL_IOStream *fp, SDL_Surface *sur, const yukino_rect_t *rect)
+{
+	yukino_write_png(rect->x, rect->y, rect->w, rect->h, iostream_write_cb, fp,
+		sdl_take_cb, sur);
 }
 
 static void sdl_write_surface_to_png(
 	const char *f, SDL_Surface *sur, const yukino_rect_t *rect)
 {
-	FILE *fp;
+	SDL_IOStream *fp;
 
-	fp = fopen(f, "wb");
+	fp = SDL_IOFromFile(f, "wb");
 	if (!fp)
 		return; /* oops */
 
-	yukino_write_png(rect->x, rect->y, rect->w, rect->h, stdio_write_cb, fp,
-		sdl_take_cb, sur);
+	/* fwd */
+	sdl_write_surface_to_png_io(fp, sur, rect);
 
-	fclose(fp);
+	SDL_CloseIO(fp);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -354,13 +365,108 @@ static int init_sdl_video(void)
 	 * Alas. We need Wayland specific features to operate on Wayland and thus we
 	 * have to override their "decision".
 	 */
-	SDL_Environment *env = SDL_GetEnvironment();
-	if (SDL_GetEnvironmentVariable(env, "WAYLAND_DISPLAY")
-		|| getenv("GAMESCOPE_WAYLAND_DISPLAY")) {
-		SDL_SetEnvironmentVariable(env, "SDL_VIDEO_DRIVER", "wayland", 1);
-	}
+
+	/* Checking for WAYLAND_DISPLAY is stupid, just brute force it and fallback
+	 * if it fails --paper */
+	SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "wayland");
+	if (SDL_Init(SDL_INIT_VIDEO))
+		return 1;
+	SDL_ResetHint(SDL_HINT_VIDEO_DRIVER);
 
 	return SDL_Init(SDL_INIT_VIDEO);
+}
+
+struct clipboard_copy_data {
+	size_t len;
+
+	/* Fork off a new process to own the clipboard */
+	unsigned int cleaned : 1;
+
+	char data[];
+};
+
+/* It's stored right after the data */
+#define CLIPBOARD_COPY_MIME(x) ((x)->data + (x)->len)
+
+const void *SDLCALL clipboard_data_cb(
+	void *userdata, const char *mime_type, size_t *size)
+{
+	struct clipboard_copy_data *cc = userdata;
+
+	if (strcmp(mime_type, CLIPBOARD_COPY_MIME(cc)))
+		return NULL;
+
+	*size = cc->len;
+	return cc->data;
+}
+
+void SDLCALL clipboard_cleanup_cb(void *userdata)
+{
+	struct clipboard_copy_data *cc = userdata;
+
+	cc->cleaned = 1;
+}
+
+/* Blocks until a clipboard copy is done */
+static void clipboard_block(struct clipboard_copy_data *cc)
+{
+	/* Have to run event handlers during this as well */
+	SDL_Event ev;
+
+	while (!cc->cleaned && SDL_WaitEvent(&ev))
+		;
+}
+
+/* Inits SDL, copies, and blocks until we no longer own the clipboard.
+ * Also frees the data itself. */
+static void clipboard_do(struct clipboard_copy_data *cc)
+{
+	const char *mime;
+
+	SDL_Init(SDL_INIT_VIDEO);
+
+	mime = CLIPBOARD_COPY_MIME(cc);
+	SDL_SetClipboardData(clipboard_data_cb, clipboard_cleanup_cb, cc, &mime, 1);
+
+	clipboard_block(cc);
+
+	free(cc);
+
+	SDL_Quit();
+}
+
+int clipboard_copy(const void *data, size_t len, const char *mime)
+{
+	/* Well, we're gonna have to make an allocation anyway, might as well copy
+	 * the data itself while we're at it */
+	struct clipboard_copy_data *cc;
+	size_t mime_len;
+	SDL_Event ev;
+
+	if (SDL_WasInit(0))
+		return -1;
+
+	mime_len = strlen(mime) + 1;
+
+	cc = malloc(sizeof(*cc) + len + mime_len);
+	if (!cc)
+		return -1;
+
+	cc->len = len;
+	memcpy(cc->data, data, len);
+	memcpy(cc->data + len, mime, mime_len);
+
+#ifdef HAVE_FORK
+	if (fork() == 0) {
+		clipboard_do(cc);
+		exit(0);
+	} else
+#endif
+	{
+		clipboard_do(cc);
+	}
+
+	return 0;
 }
 
 int main(int argc, char *argv[])
@@ -382,6 +488,8 @@ int main(int argc, char *argv[])
 	int num_disp;
 	static struct option long_opts[] = {
 		{"output", required_argument, 0, 'o'},
+		/* copy to system clipboard */
+		{"copy", no_argument, 0, 'c'},
 		{0},
 	};
 	int esc = 0;
@@ -390,14 +498,19 @@ int main(int argc, char *argv[])
 #endif
 	int refresh_rate_num, refresh_rate_den;
 	Uint64 redraw_ns;
+	int copy;
+	yukino_rect_t w;
+
+	copy = 0;
 
 	/* parse command line opts */
-	while ((opt = getopt_long(argc, argv, "o:", long_opts, NULL)) != -1) {
+	while ((opt = getopt_long(argc, argv, "o:c", long_opts, NULL)) != -1) {
 		switch (opt) {
 		case 'o':
 			/* output file */
 			file = strdup(optarg);
 			break;
+		case 'c': copy = 1; break;
 		default:
 			fprintf(stderr, "usage: %s [-o output.png]\n", argv[0]);
 			return 1;
@@ -621,8 +734,8 @@ out:
 
 		static const SDL_DialogFileFilter filters[] = {
 			{"PNG (Portable Network Graphics)", "png"},
-            {"All files",                       "*"  }
-        };
+			{"All files",                       "*"  },
+		};
 
 		SDL_ShowSaveFileDialog(
 			dialog_cb, (void *)&c, NULL, filters, SDL_arraysize(filters), NULL);
@@ -637,14 +750,47 @@ out:
 		file = c.file;
 	}
 
-	/* Save it */
-	if (file) {
-		yukino_rect_t w;
-		points_to_pixels(&w, &sel,
-			1.0); /* This is in render coordinates, but we need integers */
+	SDL_Quit();
+
+	points_to_pixels(&w, &sel,
+		1.0); /* This is in render coordinates, but we need integers */
+
+	if (copy) {
+		/* */
+		SDL_IOStream *io;
+		SDL_PropertiesID prop;
+		void *data;
+		int64_t sz;
+
+		io = SDL_IOFromDynamicMem();
+
+		/* */
+		sdl_write_surface_to_png_io(io, sur, &w);
+
+		prop = SDL_GetIOProperties(io);
+		data = SDL_GetPointerProperty(
+			prop, SDL_PROP_IOSTREAM_DYNAMIC_MEMORY_POINTER, NULL);
+		sz = SDL_GetIOSize(io);
+		/* Now, set it back to NULL */
+		SDL_SetPointerProperty(
+			prop, SDL_PROP_IOSTREAM_DYNAMIC_MEMORY_POINTER, NULL);
+
+		SDL_CloseIO(io);
+
+		/* Copy! */
+		clipboard_copy(data, sz, "image/png");
+
+		/* Save the result also to a file if requested */
+		if (file)
+			SDL_SaveFile(file, data, sz);
+
+		/* Now this data is owned by the forked process */
+		SDL_free(data);
+	} else if (file) {
 		sdl_write_surface_to_png(file, sur, &w);
-		free(file);
 	}
+
+	free(file);
 
 end:
 	SDL_DestroySurface(sur);
