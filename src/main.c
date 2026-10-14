@@ -430,8 +430,6 @@ static void clipboard_do(struct clipboard_copy_data *cc)
 
 	clipboard_block(cc);
 
-	free(cc);
-
 	SDL_Quit();
 }
 
@@ -469,6 +467,8 @@ int clipboard_copy(const void *data, size_t len, const char *mime)
 #else
 	clipboard_do(cc);
 #endif
+
+	free(cc);
 
 	return 0;
 }
@@ -732,7 +732,7 @@ out:
 	if (esc)
 		goto end;
 
-	if (!file) {
+	if (!copy && !file) {
 		/* Ask the user where to save the damn file */
 		volatile struct dialog_cb c;
 		c.sem = SDL_CreateSemaphore(0);
