@@ -497,7 +497,7 @@ yukino_result_t yukino_xdg_init(struct yukino_xdg *xdg)
 
 	memset(xdg, 0, sizeof(*xdg));
 
-	xdg->conn = dbus_bus_get(DBUS_BUS_SESSION, NULL);
+	xdg->conn = dbus_bus_get_private(DBUS_BUS_SESSION, NULL);
 	if (!xdg->conn)
 		return YUKINO_RESULT_UNSUPPORTED;
 
@@ -509,5 +509,6 @@ void yukino_xdg_quit(struct yukino_xdg *xdg)
 	if (!xdg)
 		return;
 
+	dbus_connection_close(xdg->conn);
 	dbus_connection_unref(xdg->conn);
 }

@@ -253,8 +253,8 @@ static yukino_result_t yukino_create_instance_name(yukino_window_iter_t *wi)
 	if (yukino_random(&uuid, sizeof(uuid)) < 0)
 		return YUKINO_RESULT_FILE_ERROR; /* ??? */
 
-	if (asprintf(&wi->instance, "us.tflc.yukino_%0.*" PRIxPTR,
-			(int)sizeof(uintptr_t), (uintptr_t)wi)
+	if (asprintf(&wi->instance, "us.tflc.yukino_" YUKINO_UUID_PRINTF_FORMAT_DELIM(""),
+			YUKINO_UUID_PRINTF_PARAM(&uuid))
 		< 0)
 		return YUKINO_RESULT_OUT_OF_MEMORY;
 
@@ -479,7 +479,7 @@ yukino_result_t yukino_kwin_init(struct yukino_kwin *kwi)
 
 	memset(kwi, 0, sizeof(*kwi));
 
-	kwi->conn = dbus_bus_get(DBUS_BUS_SESSION, NULL);
+	kwi->conn = dbus_bus_get_private(DBUS_BUS_SESSION, NULL);
 	if (!kwi->conn)
 		return YUKINO_RESULT_UNSUPPORTED;
 	dbus_connection_set_exit_on_disconnect(kwi->conn, FALSE);
@@ -500,5 +500,6 @@ void yukino_kwin_quit(struct yukino_kwin *kwi)
 	if (!kwi)
 		return;
 
+	dbus_connection_close(kwi->conn);
 	dbus_connection_unref(kwi->conn);
 }
