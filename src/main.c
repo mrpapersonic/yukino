@@ -457,14 +457,18 @@ int clipboard_copy(const void *data, size_t len, const char *mime)
 	memcpy(cc->data + len, mime, mime_len);
 
 #ifdef HAVE_FORK
-	if (fork() == 0) {
+	switch (fork()) {
+	case -1:
+		/* If fork() failed, just block */
+		clipboard_do(cc);
+		break;
+	case 0:
 		clipboard_do(cc);
 		exit(0);
-	} else
-#endif
-	{
-		clipboard_do(cc);
 	}
+#else
+	clipboard_do(cc);
+#endif
 
 	return 0;
 }
