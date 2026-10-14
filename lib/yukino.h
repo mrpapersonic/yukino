@@ -35,8 +35,18 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#ifdef __has_extension
+# if __has_extension(c_fixed_enum)
+#  define HAVE_FIXED_ENUM 1
+# endif
+#endif
+
+#if !defined(HAVE_FIXED_ENUM) && (__STDC_VERSION__ >= 202311L)
+# define HAVE_FIXED_ENUM 1
+#endif
+
 /* typed enum */
-#if (__STDC_VERSION__ >= 202311L)
+#if defined(HAVE_FIXED_ENUM)
 # define YUKINO_TYPED_ENUM_BEGIN(name, type) \
 	typedef enum : type {
 # define YUKINO_TYPED_ENUM_END(name) \
@@ -61,9 +71,6 @@ typedef struct yukino_window_iter yukino_window_iter_t;
 /* Connection to the display */
 struct yukino_connection;
 typedef struct yukino_connection yukino_connection_t;
-
-/* negative value == error */
-typedef int32_t yukino_result_t;
 
 /* TODO switch everything over to this */
 typedef struct yukino_rect {
