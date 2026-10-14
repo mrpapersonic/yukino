@@ -17,6 +17,7 @@
  */
 
 #include "yukino.h"
+#include "uuid.h"
 #include "yukino_c.h"
 
 #include "sys/xdg.h"
@@ -34,7 +35,8 @@
 #define TARGET_AREA         4
 #define TARGET_ACTIVEWINDOW 8
 
-static yukino_result_t register_error_s(yukino_connection_t *conn, const char *name, const char *desc)
+static yukino_result_t register_error_s(
+	yukino_connection_t *conn, const char *name, const char *desc)
 {
 	yukino_result_t r, rr;
 
@@ -49,7 +51,8 @@ static yukino_result_t register_error_s(yukino_connection_t *conn, const char *n
  * if the error registration process itself failed.
  *
  * It also frees the error, so you don't have to do that yourself. */
-static yukino_result_t map_dbus_error_to_yukino(yukino_connection_t *conn, DBusError *err)
+static yukino_result_t map_dbus_error_to_yukino(
+	yukino_connection_t *conn, DBusError *err)
 {
 	yukino_result_t r;
 
@@ -64,7 +67,8 @@ static yukino_result_t map_dbus_error_to_yukino(yukino_connection_t *conn, DBusE
 }
 
 /* Returns a success error if the message wasn't an error in the first place */
-static yukino_result_t map_dbus_message_error_to_yukino(yukino_connection_t *conn, DBusMessage *msg)
+static yukino_result_t map_dbus_message_error_to_yukino(
+	yukino_connection_t *conn, DBusMessage *msg)
 {
 	const char *name, *desc;
 	DBusError err;
@@ -77,7 +81,8 @@ static yukino_result_t map_dbus_message_error_to_yukino(yukino_connection_t *con
 		return YUKINO_RESULT_OUT_OF_MEMORY; /* I guess? */
 
 	dbus_error_init(&err);
-	if (dbus_message_get_args(msg, &err, DBUS_TYPE_STRING, &desc, DBUS_TYPE_INVALID))
+	if (dbus_message_get_args(
+			msg, &err, DBUS_TYPE_STRING, &desc, DBUS_TYPE_INVALID))
 		return register_error_s(conn, name, desc);
 
 	/* Oops, that failed... try it with the DBusError we just received?? */
@@ -85,7 +90,8 @@ static yukino_result_t map_dbus_message_error_to_yukino(yukino_connection_t *con
 }
 
 /* Like the above but also unrefs the message if there is an actual error */
-static yukino_result_t map_dbus_message_error_to_yukino_unref(yukino_connection_t *conn, DBusMessage *msg)
+static yukino_result_t map_dbus_message_error_to_yukino_unref(
+	yukino_connection_t *conn, DBusMessage *msg)
 {
 	yukino_result_t r;
 
@@ -96,8 +102,8 @@ static yukino_result_t map_dbus_message_error_to_yukino_unref(yukino_connection_
 	return r;
 }
 
-static yukino_result_t subscribe(
-	yukino_connection_t *yconn, struct yukino_xdg *conn, const char *request_path)
+static yukino_result_t subscribe(yukino_connection_t *yconn,
+	struct yukino_xdg *conn, const char *request_path)
 {
 	DBusError error;
 	char *match_rule;
@@ -214,14 +220,17 @@ static yukino_result_t send_method(struct yukino_xdg *conn, const char *token,
 
 static char *get_token(void)
 {
-	uint64_t uuid[2];
+	struct yukino_uuid uuid;
 	char *r;
 
 	/* Generate a kind of random but not really UUID */
-	if (yukino_random(uuid, sizeof(uuid)) < 0)
+	if (yukino_uuidgen(&uuid) < 0)
 		return NULL;
 
-	if (asprintf(&r, "yukino_%016" PRIx64 "%016" PRIx64, uuid[0], uuid[1]) < 0)
+	/* Delimit the UUID with nothing */
+	if (asprintf(&r, "yukino_" YUKINO_UUID_PRINTF_FORMAT_DELIM(""),
+			YUKINO_UUID_PRINTF_PARAM(&uuid))
+		< 0)
 		return NULL;
 
 	return r;
@@ -332,8 +341,9 @@ struct yukino_screenshot {
 	uint8_t *data;
 };
 
-yukino_result_t yukino_xdg_screenshot(yukino_connection_t *yconn, struct yukino_xdg *conn,
-	yukino_screenshot_t **ps, uint32_t x, uint32_t y, uint32_t w, uint32_t h)
+yukino_result_t yukino_xdg_screenshot(yukino_connection_t *yconn,
+	struct yukino_xdg *conn, yukino_screenshot_t **ps, uint32_t x, uint32_t y,
+	uint32_t w, uint32_t h)
 {
 	yukino_result_t r;
 	char *req_path, *uri, *token;
@@ -442,8 +452,8 @@ static yukino_result_t yukino_xdg_receive(
 	return YUKINO_RESULT_OK;
 }
 
-yukino_result_t yukino_xdg_screenshot_resolution(
-	yukino_connection_t *yconn, struct yukino_xdg *conn, yukino_screenshot_t *s, uint32_t *w, uint32_t *h)
+yukino_result_t yukino_xdg_screenshot_resolution(yukino_connection_t *yconn,
+	struct yukino_xdg *conn, yukino_screenshot_t *s, uint32_t *w, uint32_t *h)
 {
 	yukino_result_t r;
 
@@ -453,8 +463,8 @@ yukino_result_t yukino_xdg_screenshot_resolution(
 	return yukino_image_resolution(&s->mbuf, w, h);
 }
 
-yukino_result_t yukino_xdg_screenshot_read(
-	yukino_connection_t *yconn, struct yukino_xdg *conn, yukino_screenshot_t *s, unsigned char rgb[3])
+yukino_result_t yukino_xdg_screenshot_read(yukino_connection_t *yconn,
+	struct yukino_xdg *conn, yukino_screenshot_t *s, unsigned char rgb[3])
 {
 	yukino_result_t r;
 

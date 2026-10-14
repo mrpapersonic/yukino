@@ -152,16 +152,12 @@ static yukino_result_t kwin_write_and_load_script(struct yukino_kwin *kwi,
 	return YUKINO_RESULT_OK;
 }
 
-static yukino_result_t parse_uuid(const char *x, struct uuid *uuid)
+static yukino_result_t parse_uuid(const char *x, struct yukino_uuid *uuid)
 {
 	int r;
 
-	r = sscanf(x,
-		"{%02hhx%02hhx%02hhx%02hhx-%02hhx%02hhx-%02hhx%02hhx-%02hhx%02hhx-%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx}",
-		&uuid->c[0], &uuid->c[1], &uuid->c[2], &uuid->c[3], &uuid->c[4],
-		&uuid->c[5], &uuid->c[6], &uuid->c[7], &uuid->c[8], &uuid->c[9],
-		&uuid->c[10], &uuid->c[11], &uuid->c[12], &uuid->c[13], &uuid->c[14],
-		&uuid->c[15]);
+	r = sscanf(
+		x, "{" YUKINO_UUID_SCANF_FORMAT "}", YUKINO_UUID_SCANF_PARAM(uuid));
 
 	if (r != 16)
 		return YUKINO_RESULT_INVALID_PARAM;
@@ -208,12 +204,12 @@ static struct kwin_window *find_window_by_yukino_id(
 }
 
 static struct kwin_window *find_window_by_uuid(
-	struct yukino_kwin *kwi, const struct uuid *uuid)
+	struct yukino_kwin *kwi, const struct yukino_uuid *uuid)
 {
 	size_t i;
 
 	for (i = 0; i < kwi->w_size; i++)
-		if (memcmp(&kwi->w[i].uuid, uuid, sizeof(struct uuid)) == 0)
+		if (memcmp(&kwi->w[i].uuid, uuid, sizeof(struct yukino_uuid)) == 0)
 			return kwi->w + i;
 
 	return NULL;
@@ -252,6 +248,11 @@ static yukino_result_t update_window(
 
 static yukino_result_t yukino_create_instance_name(yukino_window_iter_t *wi)
 {
+	struct yukino_uuid uuid;
+
+	if (yukino_random(&uuid, sizeof(uuid)) < 0)
+		return YUKINO_RESULT_FILE_ERROR; /* ??? */
+
 	if (asprintf(&wi->instance, "us.tflc.yukino_%0.*" PRIxPTR,
 			(int)sizeof(uintptr_t), (uintptr_t)wi)
 		< 0)

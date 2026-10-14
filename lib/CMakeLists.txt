@@ -48,6 +48,7 @@ set(SRC_FILES
     uri.c
     random.c
     image.c
+    uuid.c
     fmt/png.c
     fmt/ppm.c
     fmt/bmp.c)

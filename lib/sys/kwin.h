@@ -20,15 +20,11 @@
 #define YUKINO_SYS_KWIN_H_
 
 #include "yukino.h"
+#include "uuid.h"
 
 #include <stdint.h>
 
 #include <dbus/dbus.h>
-
-/* Meh */
-struct uuid {
-	unsigned char c[16];
-};
 
 /* Yukino window IDs under KWin are just indexes into this array,
  * since a UUID is too large to fit in a 64-bit integer. */
@@ -40,7 +36,7 @@ struct kwin_window {
 	float x, y, w, h;
 
 	/* UUID */
-	struct uuid uuid;
+	struct yukino_uuid uuid;
 };
 
 struct yukino_kwin {
