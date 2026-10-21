@@ -374,39 +374,6 @@ static yukino_result_t yukino_xcb_unlock(yukino_connection_t *conn)
 
 /* ------------------------------------------------------------------------ */
 
-static uint32_t read_pixel(
-	const uint8_t *p, uint32_t x, uint8_t bpp, unsigned int big_endian)
-{
-	uint32_t pxl;
-
-	/* shift it to the right place */
-	p += (x * bpp) >> 3;
-
-	if (bpp == 4) {
-		pxl = ((x & 1) != big_endian) ? (*p & 0xf) : (*p >> 4);
-	} else if (big_endian) {
-		pxl = 0;
-
-		switch (bpp) {
-		case 32: pxl |= *p++; pxl <<= 8;
-		case 24: pxl |= *p++; pxl <<= 8;
-		case 16: pxl |= *p++; pxl <<= 8;
-		case 8: pxl |= *p; break;
-		}
-	} else {
-		pxl = 0;
-
-		switch (bpp) {
-		case 32: pxl |= p[3]; pxl <<= 8;
-		case 24: pxl |= p[2]; pxl <<= 8;
-		case 16: pxl |= p[1]; pxl <<= 8;
-		case 8: pxl |= p[0]; break;
-		}
-	}
-
-	return pxl;
-}
-
 struct yukino_screenshot {
 	xcb_get_image_cookie_t cookie;
 	xcb_get_image_reply_t *reply;
@@ -461,8 +428,6 @@ static yukino_result_t yukino_xcb_screenshot_resolution(
 	*h = s->h;
 	return YUKINO_RESULT_OK;
 }
-
-#include <stdio.h>
 
 static yukino_result_t yukino_xcb_screenshot_read(
 	yukino_connection_t *conn, yukino_screenshot_t *s, unsigned char rgb[3])

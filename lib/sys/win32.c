@@ -210,39 +210,6 @@ static yukino_result_t yukino_win32_unlock(yukino_connection_t *conn)
 
 /* ------------------------------------------------------------------------ */
 
-static uint32_t read_pixel(
-	const uint8_t *p, uint32_t x, uint8_t bpp, unsigned int big_endian)
-{
-	uint32_t pxl;
-
-	/* shift it to the right place */
-	p += (x * bpp) >> 3;
-
-	if (bpp == 4) {
-		pxl = ((x & 1) != big_endian) ? (*p & 0xf) : (*p >> 4);
-	} else if (big_endian) {
-		pxl = 0;
-
-		switch (bpp) {
-		case 32: pxl |= *p++; pxl <<= 8;
-		case 24: pxl |= *p++; pxl <<= 8;
-		case 16: pxl |= *p++; pxl <<= 8;
-		case 8: pxl |= *p; break;
-		}
-	} else {
-		pxl = 0;
-
-		switch (bpp) {
-		case 32: pxl |= p[3]; pxl <<= 8;
-		case 24: pxl |= p[2]; pxl <<= 8;
-		case 16: pxl |= p[1]; pxl <<= 8;
-		case 8: pxl |= p[0]; break;
-		}
-	}
-
-	return pxl;
-}
-
 struct yukino_screenshot {
 	/* This is the result bitmap from win32_screenshot */
 	HBITMAP bmp;
