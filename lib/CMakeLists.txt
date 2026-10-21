@@ -58,9 +58,6 @@ set(SRC_FILES
     fmt/bmp.c)
 
 if(WIN32)
-  message(hi)
-  # TODO
-  # list(APPEND LIBRARIES "")
   list(APPEND SRC_FILES sys/win32.c)
   list(APPEND DEFINES "-DYUKINO_WIN32=1")
 endif()

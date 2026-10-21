@@ -64,6 +64,17 @@ yukino_result_t yukino_image_resolution(
 
 struct yukino_error_info;
 
+struct yukino_random {
+	void (*close)(struct yukino_random *r);
+	size_t (*read)(struct yukino_random *r, void *ptr, size_t s);
+
+	void *userdata;
+};
+
+int yukino_random_init(struct yukino_random *r);
+void yukino_random_close(struct yukino_random *r);
+size_t yukino_random_read(struct yukino_random *r, void *ptr, size_t s);
+
 struct yukino_error_db {
 	/* Note the double-pointer is not a mistake.
 	 * It's intentional. Doing it this way means that we only
@@ -218,7 +229,8 @@ yukino_result_t yukino_uri_decode(
 yukino_result_t yukino_uri_get_file_path(const char *p, char **res);
 
 /* Fill a buffer with random bytes
- * Currently hardcoded for /dev/urandom and has no fallback */
+ * This is just a shim over the newer API that has a context struct.
+ * Ideally you would use that one instead of this. */
 yukino_result_t yukino_random(void *x, size_t n);
 
 yukino_result_t yukino_screenshot_fix_resolution(
