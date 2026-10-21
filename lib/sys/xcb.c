@@ -560,9 +560,6 @@ yukino_result_t yukino_xcb_connect(yukino_connection_t **pconn)
 	conn->screenshot_read = yukino_xcb_screenshot_read;
 	conn->screenshot_delete = yukino_xcb_screenshot_delete;
 
-	/* Use impl on top of screenshot */
-	conn->take = NULL;
-
 	for (i = 0; i < ATOM_MAX_; i++) {
 		xcb_intern_atom_reply_t *reply = xcb_intern_atom_reply(
 			conn->conn_data.conn, atom_cookies[i], NULL);

@@ -241,9 +241,6 @@ yukino_result_t yukino_gio_connect(yukino_connection_t **pconn)
 	conn->lock = yukino_gio_lock;
 	conn->unlock = yukino_gio_unlock;
 
-	/* Use impl on top of screenshot */
-	conn->take = NULL;
-
 	conn->screenshot = yukino_gio_screenshot;
 	conn->screenshot_delete = yukino_gio_screenshot_delete;
 	conn->screenshot_read = yukino_gio_screenshot_read;

@@ -115,11 +115,6 @@ struct yukino_connection {
 	yukino_result_t (*window_decorated_position)(
 		yukino_connection_t *conn, yukino_window_t win, yukino_rect_t *pr);
 
-	/* Takes a screenshot and passes each pixel to pixel_func, in order
-	 * of left-right top-down. */
-	yukino_result_t (*take)(yukino_connection_t *conn, uint32_t x, uint32_t y,
-		uint32_t w, uint32_t h, yukino_pixel_proc_t pixel_func, void *userdata);
-
 	/* Takes a screenshot. Then you can do a bunch of different things */
 	yukino_result_t (*screenshot)(yukino_connection_t *conn,
 		yukino_screenshot_t **ps, uint32_t x, uint32_t y, uint32_t w,

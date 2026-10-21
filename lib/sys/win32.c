@@ -369,9 +369,6 @@ yukino_result_t yukino_win32_connect(yukino_connection_t **pconn)
 	conn->screenshot_read = yukino_win32_screenshot_read;
 	conn->screenshot_delete = yukino_win32_screenshot_delete;
 
-	/* Use impl on top of screenshot */
-	conn->take = NULL;
-
 	*pconn = conn;
 	return YUKINO_RESULT_OK;
 }
