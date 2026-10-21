@@ -20,6 +20,7 @@
 #include "yukino_c.h"
 
 #include <stdio.h>
+#include <string.h>
 #include <time.h>
 
 /* This crap was all lifted from my librandom library  --paper */
