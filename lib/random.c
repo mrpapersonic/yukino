@@ -20,6 +20,7 @@
 #include "yukino_c.h"
 
 #include <stdio.h>
+#include <time.h>
 
 /* This crap was all lifted from my librandom library  --paper */
 
@@ -41,6 +42,7 @@
 #endif
 
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(*(x)))
+#define MIN(x,y) ((x)<(y)?(x):(y))
 
 /* NOTE: I am not sure if other platforms provide real APIs for good
  * randomness. Macintosh provides SetRandomSeed and RandomBits, but I
@@ -211,6 +213,58 @@ static int random_win32_init(struct yukino_random *r)
 #endif
 
 /* ------------------------------------------------------------------------ */
+/* Crappy fallback RNG */
+
+/* Generate an okay-ish XORshift seed */
+static uint32_t gen_xorshift_seed(void)
+{
+	/* Ehhh */
+	return time(NULL);
+}
+
+static uint32_t xorshift(uint32_t x)
+{
+	x ^= x << 13;
+	x ^= x >> 17;
+	x ^= x << 5;
+	return x;
+}
+
+static void random_xorshift_close(struct yukino_random *r)
+{
+	/* nop */
+}
+
+static size_t random_xorshift_read(struct yukino_random *r, void *ptr, size_t s)
+{
+	uint32_t x = (uintptr_t)r->userdata;
+
+	while (s > 0) {
+		size_t n;
+
+		n = MIN(s, 4);
+
+		memcpy(ptr, &x, n);
+		ptr = (char *)ptr + n;
+		s -= n;
+
+		x = xorshift(x);
+	}
+
+	r->userdata = (void *)(uintptr_t)x;
+}
+
+static int random_xorshift_init(struct yukino_random *r)
+{
+	/* Seed */
+	r->userdata = (void *)(uintptr_t)gen_xorshift_seed();
+	r->close = random_xorshift_close;
+	r->read = random_xorshift_read;
+
+	return 0;
+}
+
+/* ------------------------------------------------------------------------ */
 /* platform-independent routines */
 
 yukino_result_t yukino_random_init(struct yukino_random *r)
@@ -227,7 +281,8 @@ yukino_result_t yukino_random_init(struct yukino_random *r)
 #ifdef RANDOM_UNIX
 		random_unix_init,
 #endif
-		NULL,
+		/* Works everywhere but is subpar at best */
+		random_xorshift_init,
 	};
 
 	for (i = 0; funcs[i]; i++)
