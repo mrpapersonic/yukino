@@ -19,7 +19,7 @@
 #ifndef YUKINO_H_
 #define YUKINO_H_
 
-#ifdef _WIN32
+#if defined(_WIN32) && defined(YUKINO_SHARED)
 # ifdef YUKINO_BUILD
 #  define YUKINO_EXTERN __declspec(dllexport) extern
 # else

@@ -83,12 +83,6 @@ err:
 /* Takes a screenshot of the whole desktop */
 static SDL_Surface *sdl_screenshot_display(yukino_connection_t *conn)
 {
-	yukino_result_t r;
-	uint32_t w, h;
-
-	if ((r = yukino_display_resolution(conn, &w, &h)) < 0)
-		return NULL;
-
 	return sdl_screenshot(conn, 0, 0, YUKINO_SCREENSHOT_DESKTOP_RESOLUTION,
 		YUKINO_SCREENSHOT_DESKTOP_RESOLUTION);
 }
@@ -376,6 +370,14 @@ static int init_sdl_video(void)
 	return SDL_Init(SDL_INIT_VIDEO);
 }
 
+static bool we_own_clipboard(void)
+{
+	const char *drv = SDL_GetCurrentVideoDriver();
+
+	/* :) */
+	return (!strcmp(drv, "wayland") || !strcmp(drv, "x11"));
+}
+
 struct clipboard_copy_data {
 	size_t len;
 
@@ -428,7 +430,10 @@ static void clipboard_do(struct clipboard_copy_data *cc)
 	mime = CLIPBOARD_COPY_MIME(cc);
 	SDL_SetClipboardData(clipboard_data_cb, clipboard_cleanup_cb, cc, &mime, 1);
 
-	clipboard_block(cc);
+	/* Only block if we actually own the clipboard.
+	 * This is only the case on X11 and Wayland. */
+	if (we_own_clipboard())
+		clipboard_block(cc);
 
 	SDL_Quit();
 }

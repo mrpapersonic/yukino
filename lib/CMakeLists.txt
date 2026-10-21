@@ -39,7 +39,11 @@ endif()
 # Make these empty for now
 set(LIBRARIES "")
 set(INCLUDE "")
-set(DEFINES "")
+set(DEFINES "-DYUKINO_BUILD=1")
+
+if(BUILD_SHARED_LIBS)
+  list(APPEND DEFINES "-DYUKINO_SHARED=1")
+endif()
 
 set(SRC_FILES
     yukino.c
@@ -52,6 +56,14 @@ set(SRC_FILES
     fmt/png.c
     fmt/ppm.c
     fmt/bmp.c)
+
+if(WIN32)
+  message(hi)
+  # TODO
+  # list(APPEND LIBRARIES "")
+  list(APPEND SRC_FILES sys/win32.c)
+  list(APPEND DEFINES "-DYUKINO_WIN32=1")
+endif()
 
 if(XCB_FOUND)
   list(APPEND LIBRARIES ${XCB_LINK_LIBRARIES})

@@ -162,6 +162,10 @@ void yukino_adler32(
 	struct yukino_adler32 *a32, const unsigned char *msg, size_t sz);
 uint32_t yukino_adler32_get(struct yukino_adler32 *a32);
 
+#ifdef YUKINO_WIN32
+yukino_result_t yukino_win32_connect(yukino_connection_t **pconn);
+#endif
+
 #ifdef YUKINO_XCB
 /* initializes a connection */
 yukino_result_t yukino_xcb_connect(yukino_connection_t **pconn);

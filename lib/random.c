@@ -19,22 +19,56 @@
 #include "yukino.h"
 #include "yukino_c.h"
 
-#include <fcntl.h>
-#include <unistd.h>
+#ifdef YUKINO_WIN32
+# include <windows.h>
+#else
+# include <fcntl.h>
+# include <unistd.h>
+#endif
 
+/* Ugh, this is nasty. Ideally we would have something that
+ * initializes a random number generator, then we can just
+ * read from that at any time. Oops. */
 yukino_result_t yukino_random(void *x, size_t n)
 {
+#ifdef YUKINO_WIN32
+	typedef BOOLEAN (*tpRtlGenRandom)(PVOID, ULONG);
+	HMODULE mod;
+	BOOLEAN res;
+	tpRtlGenRandom pRtlGenRandom;
+
+	/* XXX fallback to poopy rand() */
+	mod = LoadLibraryA("ADVAPI32.DLL");
+	if (!mod)
+		return YUKINO_RESULT_UNSUPPORTED;
+
+	pRtlGenRandom = (tpRtlGenRandom)GetProcAddress(mod, "SystemFunction036");
+	if (!pRtlGenRandom) {
+		FreeLibrary(mod);
+		return YUKINO_RESULT_UNSUPPORTED;
+	}
+
+	res = pRtlGenRandom(x, n);
+
+	FreeLibrary(mod);
+
+	if (!res)
+		return YUKINO_RESULT_UNSUPPORTED;
+
+	return YUKINO_RESULT_OK;
+#else
 	int fd;
 	ssize_t nr;
 
 	fd = open("/dev/urandom", O_RDONLY | O_CLOEXEC);
 	if (fd < 0)
-		return -1;
+		return YUKINO_RESULT_UNSUPPORTED;
 
 	nr = read(fd, x, n);
 	close(fd);
 	if (nr != n)
-		return -1;
+		return YUKINO_RESULT_UNSUPPORTED;
 
-	return 0;
+	return YUKINO_RESULT_OK;
+#endif
 }
