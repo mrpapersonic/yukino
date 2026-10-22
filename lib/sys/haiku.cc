@@ -110,11 +110,15 @@ static yukino_result_t yukino_haiku_window_iter_start(yukino_connection_t *conn,
 {
 	struct yukino_window_iter *wi;
 
-	wi = new struct yukino_window_iter;
+	wi = new(std::nothrow) struct yukino_window_iter;
+	if (!wi)
+		return YUKINO_RESULT_OUT_OF_MEMORY;
 
 	BMessenger msger("application/x-vnd.HAIKU-app_server");
-	if (!msger.IsValid())
+	if (!msger.IsValid()) {
+		delete wi;
 		return YUKINO_RESULT_UNSUPPORTED;
+	}
 
 	BMessage req(B_GET_PROPERTY);
 	req.AddSpecifier("Window");
@@ -262,8 +266,12 @@ static yukino_result_t yukino_haiku_screenshot(yukino_connection_t *conn,
 		break;
 	default: {
 		/* Convert to rgb32, replace the original, then fallthrough */
-		BBitmap *nb = new BBitmap(s->bmp->Bounds(), B_RGB32);
-		nb->ImportBits(s->bmp);
+		BBitmap *nb = new(std::nothrow) BBitmap(s->bmp->Bounds(), B_RGB32);
+		if (!nb || (nb->ImportBits(s->bmp) != B_OK)) {
+			delete s->bmp;
+			free(s);
+			return YUKINO_RESULT_OUT_OF_MEMORY;
+		}
 		delete s->bmp;
 		s->bmp = nb;
 	}
