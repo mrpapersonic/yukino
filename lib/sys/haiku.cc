@@ -252,23 +252,30 @@ static yukino_result_t yukino_haiku_screenshot(yukino_connection_t *conn,
 		red_mask = 0x7C00;
 		green_mask = 0x03E0;
 		blue_mask = 0x001F;
-		bpp = 15;
+		bpp = 16;
 		break;
+	case B_RGB16:
+		red_mask = 0xF800;
+		green_mask = 0x07E0;
+		blue_mask = 0x001F;
+		bpp = 16;
+		break;
+	default: {
+		/* Convert to rgb32, replace the original, then fallthrough */
+		BBitmap *nb = new BBitmap(s->bmp->Bounds(), B_RGB32);
+		nb->ImportBits(s->bmp);
+		delete s->bmp;
+		s->bmp = nb;
+	}
 	case B_RGB32:
 		red_mask = 0xFF0000;
 		green_mask = 0x00FF00;
 		blue_mask = 0x0000FF;
 		bpp = 32;
 		break;
-	case B_CMAP8:
-	default:
-		/* Give up */
-		delete s->bmp;
-		free(s);
-		return YUKINO_RESULT_UNSUPPORTED;
 	}
 
-	yukino_image(&s->mbuf, s->bmp->Bits(), bpp, red_mask, green_mask, blue_mask, YUKINO_IMAGE_ENDIAN_NATIVE, s->bmp->BytesPerRow(), 0, 0, w, h);
+	yukino_image(&s->mbuf, s->bmp->Bits(), bpp, red_mask, green_mask, blue_mask, YUKINO_IMAGE_ENDIAN_LITTLE, s->bmp->BytesPerRow(), 0, 0, w, h);
 
 	*ps = s;
 	return YUKINO_RESULT_OK;
