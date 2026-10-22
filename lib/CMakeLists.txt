@@ -21,6 +21,9 @@ project(
 	LANGUAGES C
 	VERSION 0.1.0)
 
+include(CheckLanguage)
+check_language(CXX)
+
 find_package(PkgConfig REQUIRED)
 
 pkg_check_modules(XCB xcb)
@@ -60,6 +63,13 @@ set(SRC_FILES
 if(WIN32)
 	list(APPEND SRC_FILES sys/win32.c)
 	list(APPEND DEFINES "-DYUKINO_WIN32=1")
+endif()
+
+if((CMAKE_SYSTEM_NAME STREQUAL "Haiku") AND CMAKE_CXX_COMPILER)
+	enable_language(CXX)
+	list(APPEND SRC_FILES sys/haiku.cc)
+	list(APPEND LIBRARIES "be")
+	list(APPEND DEFINES "-DYUKINO_HAIKU=1")
 endif()
 
 if(XCB_FOUND)

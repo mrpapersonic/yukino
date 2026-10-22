@@ -182,6 +182,10 @@ yukino_result_t yukino_xcb_connect(yukino_connection_t **pconn);
 yukino_result_t yukino_gio_connect(yukino_connection_t **pconn);
 #endif
 
+#ifdef YUKINO_HAIKU
+yukino_result_t yukino_haiku_connect(yukino_connection_t **pconn);
+#endif
+
 YUKINO_INLINE unsigned int yukino_ctz32(uint32_t x)
 {
 #ifdef __GNUC__
