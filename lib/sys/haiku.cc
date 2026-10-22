@@ -37,11 +37,15 @@ extern "C" {
 
 #pragma pack(push, 1)
 struct client_window_info {
-	/* Junk we don't care about */
 	char dummy[36];
 	/* Window position! */
 	int32_t left, top, right, bottom;
-	/* After this is junk we don't care about */
+	/* Hidden (int for some reason) */
+	int32_t hidden;
+	/* Minimized? */
+	bool mini;
+	/* stuff */
+	float tab_height, border_size;
 };
 #pragma pack(pop)
 
@@ -86,23 +90,6 @@ static yukino_result_t yukino_haiku_display_resolution(
 
 	*w = mode.virtual_width;
 	*h = mode.virtual_height;
-	return YUKINO_RESULT_OK;
-}
-
-static yukino_result_t haiku_send_window_request(yukino_window_t win, const char *specifier, BMessage *reply)
-{
-	BMessage request(B_GET_PROPERTY);
-
-	request.AddSpecifier(specifier);
-	request.AddSpecifier("Window", (int32_t)(uint32_t)win);
-
-	BMessenger msger("application/x-vnd.HAIKU-app_server" /*NULL, (int32_t)(uint32_t)(win >> 32)*/);
-	if (!msger.IsValid())
-		return YUKINO_RESULT_UNSUPPORTED;
-
-	if (msger.SendMessage(&request, reply) != B_OK)
-		return YUKINO_RESULT_UNSUPPORTED;
-
 	return YUKINO_RESULT_OK;
 }
 
@@ -156,29 +143,7 @@ static yukino_result_t yukino_haiku_window_iter_unfiltered(
 static yukino_result_t yukino_haiku_window_iter(
 	yukino_connection_t *conn, yukino_window_iter_t *wi, yukino_window_t *pw)
 {
-#if 0
-	yukino_result_t r;
-
-	while ((r = yukino_haiku_window_iter_unfiltered(conn, wi, pw)) == YUKINO_RESULT_OK) {
-		BMessage reply;
-		if ((r = haiku_send_window_request(*pw, "Hidden", &reply)) < 0) {
-			/* Probably wasn't a valid ID in the first place */
-			continue;
-		}
-
-		bool hidden;
-		if (reply.FindBool("result", &hidden) != B_OK)
-			continue;			
-
-		if (hidden) continue;
-
-		return YUKINO_RESULT_OK;
-	}
-
-	return r;
-#else
 	return yukino_haiku_window_iter_unfiltered(conn, wi, pw);
-#endif
 }
 
 static yukino_result_t yukino_haiku_window_iter_end(
@@ -195,25 +160,36 @@ static yukino_result_t yukino_haiku_window_iter_end(
 static yukino_result_t yukino_haiku_window_position(
 	yukino_connection_t *conn, yukino_window_t win, yukino_rect_t *pr)
 {
-#if 0
-	yukino_result_t r;
+	client_window_info *i = get_window_info((int32_t)(uint32_t)win);
 
-	BMessage reply;
-	if ((r = haiku_send_window_request(win, "Frame", &reply)) < 0)
-		return r;
+	pr->x = i->left;
+	pr->y = i->top;
+	pr->w = i->right - i->left;
+	pr->h = i->bottom - i->top;
 
-	BRect frame;
-	if (reply.FindRect("result", &frame) != B_OK)
+	/* Half-assed */
+	if (i->hidden || i->mini) {
+		free(i);
 		return YUKINO_RESULT_UNSUPPORTED;
+	}
 
-	pr->x = frame.left;
-	pr->y = frame.top;
-	pr->w = frame.right - frame.left;
-	pr->h = frame.bottom - frame.top;
+	free(i);
 
 	return YUKINO_RESULT_OK;
-#else
+}
+
+static yukino_result_t yukino_haiku_window_decorated_position(
+	yukino_connection_t *conn, yukino_window_t win, yukino_rect_t *pr)
+{
 	client_window_info *i = get_window_info((int32_t)(uint32_t)win);
+
+	/* Apply border size */
+	i->top -= i->border_size;
+	i->bottom += i->border_size;
+	i->left -= i->border_size;
+	i->right += i->border_size;
+
+	i->top -= i->tab_height;
 
 	pr->x = i->left;
 	pr->y = i->top;
@@ -223,13 +199,6 @@ static yukino_result_t yukino_haiku_window_position(
 	free(i);
 
 	return YUKINO_RESULT_OK;
-#endif
-}
-
-static yukino_result_t yukino_haiku_window_decorated_position(
-	yukino_connection_t *conn, yukino_window_t win, yukino_rect_t *pr)
-{
-	return YUKINO_RESULT_UNSUPPORTED;
 }
 
 /* ------------------------------------------------------------------------ */
