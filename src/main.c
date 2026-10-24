@@ -34,6 +34,10 @@
 
 #include <getopt.h>
 
+#ifdef YUKINO_FOUNDATION
+void mac_set_window_always_on_top(SDL_Window *win);
+#endif
+
 /* ------------------------------------------------------------------------ */
 /* grab the whole screen and shove it into a SDL_Surface */
 
@@ -178,6 +182,7 @@ static void dialog_cb(void *userdata, const char *const *filelist, int filter)
 struct window {
 	yukino_window_t win;
 
+	unsigned int have_rect : 1;
 	unsigned int have_border : 1;
 
 	/* 'border' is 'rect' with WM borders applied */
@@ -217,11 +222,12 @@ static void windows_fill(yukino_connection_t *conn)
 
 		w = &windows[windows_size];
 
-		if (yukino_window_position(conn, win, &w->rect) < 0)
-			continue; /* ??? */
+		w->have_rect = (yukino_window_position(conn, win, &w->rect) >= 0);
+		w->have_border = (yukino_window_decorated_position(conn, win, &w->border) >= 0);
 
-		if (yukino_window_decorated_position(conn, win, &w->border) >= 0)
-			w->have_border = 1;
+		if (!w->have_rect && !w->have_border)
+			continue; /* Skip */
+
 		w->win = win;
 
 		windows_size++;
@@ -244,11 +250,11 @@ static yukino_result_t windows_query_at_point(
 		struct window *win = &windows[i];
 
 		/* check if our coordinates are inside the window */
-		if (yukino_rect_has_point(&win->rect, x, y)) {
-			*pr = win->rect;
+		if (win->have_rect && yukino_rect_has_point(&win->rect, x, y)) {
+			memcpy(pr, &win->rect, sizeof(yukino_rect_t));
 			r = YUKINO_RESULT_OK;
-		} else if (yukino_rect_has_point(&win->border, x, y)) {
-			*pr = win->border;
+		} else if (win->have_border && yukino_rect_has_point(&win->border, x, y)) {
+			memcpy(pr, &win->border, sizeof(yukino_rect_t));
 			r = YUKINO_RESULT_OK;
 		}
 	}
@@ -509,6 +515,7 @@ int main(int argc, char *argv[])
 	Uint64 redraw_ns;
 	int copy;
 	yukino_rect_t w;
+	int show_window = 0;
 
 	copy = 0;
 
@@ -587,7 +594,10 @@ int main(int argc, char *argv[])
 		 * We explicitly DON'T do this for multi-display desktops,
 		 * because that ends up having the window on only one display,
 		 * which is Not What We Want */
-		if (num_disp == 1) {
+
+		/* err, this makes SDL pop up some weird bullshit on macos,
+		 * so don't do it there i guess */
+		if (num_disp == 1 && SDL_strcmp(SDL_GetCurrentVideoDriver(), "cocoa")) {
 			SDL_SetBooleanProperty(
 				props, SDL_PROP_WINDOW_CREATE_FULLSCREEN_BOOLEAN, true);
 		}
@@ -616,7 +626,7 @@ int main(int argc, char *argv[])
 	}
 #endif
 
-	SDL_ShowWindow(win);
+	show_window = 1;
 
 	ren = SDL_CreateRenderer(win, NULL);
 	if (!ren)
@@ -642,13 +652,18 @@ int main(int argc, char *argv[])
 			scale_from_render = (float)sur->w / www;
 		}
 
+		if (show_window) redraw = 1;
+
 		switch (ev.type) {
 		case SDL_EVENT_WINDOW_SHOWN:
 		case SDL_EVENT_WINDOW_EXPOSED: redraw = 1; break;
 		case SDL_EVENT_MOUSE_BUTTON_DOWN: down = 1;
 #define SCALE_FROM_WINDOW(x, y, px, py) \
-	(SDL_RenderCoordinatesFromWindow(ren, x, y, px, py), \
-		*(px) *= scale_from_render, (*py) *= scale_from_render)
+	do { \
+		SDL_RenderCoordinatesFromWindow(ren, x, y, px, py); \
+		*(px) *= scale_from_render; \
+		*(py) *= scale_from_render; \
+	} while (0)
 			SCALE_FROM_WINDOW(ev.button.x, ev.button.y, &points[POINTS_DOWN].x,
 				&points[POINTS_DOWN].y);
 			redraw = 1;
@@ -686,6 +701,7 @@ int main(int argc, char *argv[])
 			SDL_GetMouseState(&mx, &my);
 
 			if (windows_query_at_point(mx, my, &w) == YUKINO_RESULT_OK) {
+				printf("%d, %d, %d, %d\n", w.x, w.y, w.w, w.h);
 				pixels_to_points(&sel, &w, 1.0);
 				SCALE_FROM_WINDOW(sel.x, sel.y, &sel.x, &sel.y);
 				SCALE_FROM_WINDOW(sel.w, sel.h, &sel.w, &sel.h);
@@ -704,6 +720,8 @@ int main(int argc, char *argv[])
 		rendsel.w = sel.w * scale_to_render;
 		rendsel.h = sel.h * scale_to_render;
 
+		printf("%f, %f, %f, %f\n", rendsel.x, rendsel.y, rendsel.w, rendsel.h);
+
 		/* now we begin our blitting journey */
 		SDL_RenderClear(ren);
 
@@ -717,6 +735,14 @@ int main(int argc, char *argv[])
 		SDL_RenderTexture(ren, tex, &sel, &rendsel);
 
 		SDL_RenderPresent(ren);
+
+		if (show_window) {
+			SDL_ShowWindow(win);
+#ifdef YUKINO_FOUNDATION
+			mac_set_window_always_on_top(win);
+#endif
+			show_window = 0;
+		}
 	} while (SDL_WaitEvent(&ev));
 
 out:

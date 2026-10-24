@@ -31,6 +31,11 @@ yukino_result_t yukino_connect(yukino_connection_t **pconn)
 	if (!pconn)
 		return YUKINO_RESULT_INVALID_PARAM;
 
+#ifdef YUKINO_QUARTZ
+	if (yukino_quartz_connect(pconn) == YUKINO_RESULT_OK)
+		goto gotit;
+#endif
+
 #ifdef YUKINO_HAIKU
 	if (yukino_haiku_connect(pconn) == YUKINO_RESULT_OK)
 		goto gotit;

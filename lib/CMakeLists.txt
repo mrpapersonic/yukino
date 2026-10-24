@@ -22,6 +22,7 @@ project(
 	VERSION 0.1.0)
 
 include(CheckLanguage)
+include(CheckLibraryExists)
 check_language(CXX)
 
 find_package(PkgConfig REQUIRED)
@@ -59,6 +60,15 @@ set(SRC_FILES
     fmt/png.c
     fmt/ppm.c
     fmt/bmp.c)
+
+find_library(COREFOUNDATION_PATH NAMES CoreFoundation)
+find_library(COREGRAPHICS_PATH NAMES CoreGraphics)
+
+if(COREFOUNDATION_PATH AND COREGRAPHICS_PATH)
+	list(APPEND SRC_FILES sys/quartz.c)
+	list(APPEND LIBRARIES "${COREFOUNDATION_PATH}" "${COREGRAPHICS_PATH}")
+	list(APPEND DEFINES "-DYUKINO_QUARTZ=1")
+endif()
 
 if(WIN32)
 	list(APPEND SRC_FILES sys/win32.c)
@@ -126,7 +136,11 @@ if(DBUS_FOUND)
 	list(APPEND LIBRARIES ${DBUS_LINK_LIBRARIES})
 	list(APPEND INCLUDE ${DBUS_INCLUDE_DIRS})
 	list(APPEND DEFINES "-DYUKINO_XDG=1 -DYUKINO_KWIN=1 -DYUKINO_WLR=1")
-	list(APPEND SRC_FILES sys/xdg.c sys/kwin.c sys/wlr.c)
+	list(APPEND SRC_FILES sys/xdg.c sys/kwin.c)
+endif()
+
+if(DBUS_FOUND AND WAYLAND_FOUND AND WAYLAND_SCANNER)
+	list(APPEND SRC_FILES sys/wlr.c)
 endif()
 
 if(DBUS_FOUND

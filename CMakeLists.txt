@@ -41,6 +41,18 @@ pkg_check_modules(WAYLAND wayland-client)
 pkg_check_modules(WAYLAND_PROTOCOLS wayland-protocols)
 find_program(WAYLAND_SCANNER wayland-scanner)
 
+include(CheckLanguage)
+check_language(OBJC)
+
+find_library(FOUNDATION NAMES Foundation)
+
+if(CMAKE_OBJC_COMPILER AND FOUNDATION)
+	enable_language(OBJC)
+	list(APPEND LIBRARIES "${FOUNDATION}")
+	list(APPEND SRC_FILES src/mac.m)
+	list(APPEND DEFINES "-DYUKINO_FOUNDATION=1")
+endif()
+
 if(WAYLAND_FOUND
    AND WAYLAND_PROTOCOLS_FOUND
    AND WAYLAND_SCANNER)
@@ -80,10 +92,7 @@ if(WAYLAND_FOUND
 	list(APPEND DEFINES YUKINO_LAYER_SHELL=1)
 endif()
 
-if(XCB_FOUND)
-	list(APPEND LIBRARIES ${XCB_LINK_LIBRARIES})
-	list(APPEND INCLUDE ${XCB_INCLUDE_DIRS})
-endif()
+# Random stupid fucking bullshit
 
 include(CheckFunctionExists)
 check_function_exists(fork HAVE_FORK)
