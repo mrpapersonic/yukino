@@ -6,18 +6,37 @@ The bulk of the program is in lib/, which contains platform code
 for getting screenshots among other funsies such as tiny png and
 ppm writers.
 
-While the library is built with platform-agnosticity in mind,
-there only exists code to support X11 via xcb at the moment. Feel
-free to submit patches for your favorite platform.
+It currently can be built for the following platforms, with varying
+levels of stability and correctness:
+
+* Wayland. Works fairly well, but which features are supported
+  depends on the compositor. Use KWin for the best feature set.
+
+* X11 (via xcb). This is the platform yukino was originally created
+  for, and generally it works well. Things may vary depending on
+  the exact window manager you're using.
+
+* Windows. Works fairly well, even in a mixed-DPI setup, due to how
+  high DPI works from the API level.
+
+* MacOS. Likely does not work on Retina screens, as I do not have a Mac
+  to test with at the moment.
+
+* Haiku. Only tested in a VM, will likely break if and when they add
+  multi-monitor support.
 
 It can be built on its own as a library, but there are no guarantees
-for API nor ABI stability.
+for API nor ABI stability currently.
 
 /. deps ./
 
-The library optionally depends on xcb for X11 support.
+For X11, you will only need xcb. Wayland requires some junk to
+generate C headers from protocol definitions. Windows and Mac shouldn't
+require anything special.
 
-The program additionally requires SDL on top of that.
+The program requires SDL 3 for it's GUI, meaning it's limited to whatever
+platforms SDL supports. In the future I may consider separating out that
+code into another library, but that is not planned currently.
 
 /. q&a ./
 
